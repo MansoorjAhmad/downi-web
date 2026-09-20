@@ -1,1104 +1,1238 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>DOWNI — Grab Any Video</title>
-  <meta name="description" content="Download any video instantly. YouTube, Instagram, TikTok, Twitter and more. No signup. No watermarks.">
+  <meta name="description" content="Grab any video. One tap. Zero clutter. Works on iPhone, Android, and Desktop browsers.">
   <meta name="theme-color" content="#060A13">
   <meta property="og:title" content="DOWNI — Grab Any Video">
-  <meta property="og:description" content="Download any video instantly. No signup. No watermarks.">
-  <meta property="og:image" content="/og.png">
-  <meta property="og:type" content="website">
-  <meta name="twitter:card" content="summary_large_image">
-  <link rel="manifest" href="/manifest.json">
-  <link rel="icon" type="image/png" href="/icon.png">
-  <link rel="apple-touch-icon" href="/icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
+  <meta property="og:description" content="Grab any video. One tap. Zero clutter.">
+  <meta property="og:image" content="assets/logo.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <script src="assets/vendor/tailwind.js"></script>
+  <!-- Apply saved theme before first paint to avoid flash -->
+  <script>try{var t=localStorage.getItem('omni_theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    @font-face {
+      font-family: 'Plus Jakarta Sans';
+      font-style: normal;
+      font-weight: 200 800;
+      font-display: swap;
+      src: url('assets/vendor/PlusJakartaSans.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url('assets/vendor/JetBrainsMono.woff2') format('woff2');
+    }
 
     :root {
-      --bg:        #060A13;
-      --surface:   #0D1421;
+      --bg: #060A13;
+      --surface: #0D1421;
       --surface-2: #111A2C;
-      --line:      rgba(255,255,255,0.07);
-      --accent:    #22D3EE;
-      --accent-2:  #3B82F6;
-      --ok:        #34D399;
-      --bad:       #FB7185;
-      --muted:     #8A94A7;
-      --text:      #E2E8F0;
-      --font:      'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --line: rgba(255, 255, 255, 0.07);
+      --accent: #22D3EE;
+      --accent-2: #3B82F6;
+      --ok: #34D399;
+      --bad: #FB7185;
+      --muted: #8A94A7;
     }
 
-    html { height: 100%; background: var(--bg); }
+    :root[data-theme="light"] {
+      --bg: #F0F4F8;
+      --surface: #FFFFFF;
+      --surface-2: #E8EFF5;
+      --line: rgba(0, 0, 0, 0.08);
+      --accent: #0891B2;
+      --accent-2: #2563EB;
+      --ok: #059669;
+      --bad: #DC2626;
+      --muted: #64748B;
+    }
 
+    :root[data-theme="light"] body {
+      color: #1E293B;
+    }
+
+    :root[data-theme="light"] .text-white { color: #0F172A !important; }
+    :root[data-theme="light"] .text-zinc-200 { color: #1E293B !important; }
+    :root[data-theme="light"] .text-zinc-300 { color: #334155 !important; }
+    :root[data-theme="light"] .text-zinc-400 { color: #64748B !important; }
+    :root[data-theme="light"] .text-zinc-500 { color: #94A3B8 !important; }
+    :root[data-theme="light"] .card { background: var(--surface); border-color: var(--line); }
+    :root[data-theme="light"] .btn { background: var(--surface-2); color: #334155; }
+    :root[data-theme="light"] .dock { background: rgba(255,255,255,0.9); border: 1px solid var(--line); }
+    :root[data-theme="light"] .nav-item.on { background: var(--surface-2); color: var(--accent); }
+    :root[data-theme="light"] .chip { background: var(--surface-2); color: #334155; border-color: var(--line); }
+    :root[data-theme="light"] .chip.on { background: var(--accent); color: #fff; }
+    :root[data-theme="light"] input[type="text"],
+    :root[data-theme="light"] input[type="url"],
+    :root[data-theme="light"] textarea,
+    :root[data-theme="light"] select { background: var(--surface-2); color: #1E293B; border-color: var(--line); }
+
+    * {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    html, body { background: var(--bg); }
     body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100%;
-      overflow-x: hidden;
+      color: #F2F5FA;
+      background-image:
+        radial-gradient(1000px 520px at 50% -12%, rgba(34, 211, 238, 0.10), transparent 70%),
+        radial-gradient(760px 560px at 100% 102%, rgba(59, 130, 246, 0.07), transparent 60%);
+      background-attachment: fixed;
     }
 
-    /* ─── Layout ─── */
-    .page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0 16px 80px;
-    }
-
-    /* ─── Header ─── */
-    header {
-      width: 100%;
-      max-width: 560px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 28px 0 0;
-    }
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .logo-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #22D3EE22, #3B82F622);
-      border: 1px solid rgba(34,211,238,0.25);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    }
-    .logo-text {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      color: #fff;
-    }
-    .logo-text span { color: var(--accent); }
-    .version-badge {
-      font-size: 10px;
-      font-weight: 700;
-      font-family: 'Courier New', monospace;
-      color: var(--muted);
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 3px 8px;
-    }
-
-    /* ─── Main content ─── */
-    main {
-      width: 100%;
-      max-width: 560px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    /* ─── Hero ─── */
-    .hero {
-      text-align: center;
-      padding: 52px 0 40px;
-    }
-    .hero-eyebrow {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 14px;
-    }
-    .hero-title {
-      font-size: clamp(28px, 7vw, 42px);
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: -1px;
-      line-height: 1.1;
-      margin-bottom: 14px;
-    }
-    .hero-sub {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    /* ─── Platform badges ─── */
-    .platforms {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 28px;
-    }
-    .platform-pill {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 10px;
-      border-radius: 20px;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      transition: border-color .2s, color .2s;
-    }
-    .platform-pill .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--muted);
-    }
-    .platform-pill.yt  .dot { background: #FF0000; }
-    .platform-pill.ig  .dot { background: #E1306C; }
-    .platform-pill.tt  .dot { background: #69C9D0; }
-    .platform-pill.tw  .dot { background: #1DA1F2; }
-    .platform-pill.fb  .dot { background: #1877F2; }
-
-    /* ─── Input card ─── */
-    .input-card {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      padding: 6px 6px 6px 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: border-color .2s;
-      margin-top: 32px;
-    }
-    .input-card:focus-within {
-      border-color: rgba(34,211,238,0.4);
-    }
-    .input-icon { font-size: 16px; flex-shrink: 0; }
-    .url-input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      outline: none;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
-      padding: 12px 0;
-      min-width: 0;
-    }
-    .url-input::placeholder { color: var(--muted); }
-    .btn-paste {
-      background: var(--surface-2);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-family: var(--font);
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--muted);
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: background .15s, color .15s;
-      white-space: nowrap;
-    }
-    .btn-paste:hover { background: rgba(34,211,238,.08); color: var(--accent); }
-    .btn-clear {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      font-size: 16px;
-      padding: 8px;
-      flex-shrink: 0;
-      display: none;
-    }
-    .btn-grab {
-      width: 100%;
-      margin-top: 12px;
-      padding: 16px;
-      border: none;
-      border-radius: 16px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #000;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: .5px;
-      cursor: pointer;
-      transition: opacity .2s, transform .15s;
-    }
-    .btn-grab:hover { opacity: .9; }
-    .btn-grab:active { transform: scale(.98); }
-    .btn-grab:disabled { opacity: .4; cursor: not-allowed; }
-
-    /* ─── Cards ─── */
     .card {
-      width: 100%;
       background: var(--surface);
       border: 1px solid var(--line);
-      border-radius: 20px;
-      overflow: hidden;
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+    .card-accent { border-color: rgba(34, 211, 238, 0.28); box-shadow: 0 12px 36px rgba(34, 211, 238, 0.08); }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 16px;
+      transition: transform .15s ease, background .15s ease;
+    }
+    .btn:active { transform: scale(0.97); background: rgba(255, 255, 255, 0.10); }
+
+    .btn-hero {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #04121C;
+      border: none;
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(34, 211, 238, 0.30);
+      transition: transform .15s ease, box-shadow .2s ease, opacity .2s ease;
+    }
+    .btn-hero:active { transform: scale(0.98); box-shadow: 0 8px 20px rgba(34, 211, 238, 0.4); }
+    .btn-hero:disabled { opacity: .55; cursor: not-allowed; }
+
+    .chip {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      transition: all .15s ease;
+    }
+    .chip.on {
+      background: rgba(34,211,238,0.14);
+      border-color: rgba(34,211,238,0.4);
+      color: #7DE7F7;
     }
 
-    /* ─── States ─── */
-    .state { display: none; flex-direction: column; align-items: center; width: 100%; }
-    .state.active { display: flex; }
-
-    /* ─── Scanning ─── */
-    #stateScanning {
-      padding: 60px 0;
-      text-align: center;
+    /* ---- HERO VORTEX BUTTON ---- */
+    .vortex {
+      width: 132px; height: 132px; border-radius: 999px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; cursor: pointer; user-select: none;
+      background: radial-gradient(circle at 32% 30%, rgba(34,211,238,.16), rgba(9,14,26,.95) 65%);
+      border: 1px solid rgba(34,211,238,.35);
+      box-shadow: 0 0 44px rgba(34,211,238,.22), inset 0 0 26px rgba(34,211,238,.12);
+      transition: transform .18s cubic-bezier(.4,0,.2,1);
     }
-    .spinner {
-      width: 48px; height: 48px;
-      border: 3px solid var(--line);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
-      margin: 0 auto 20px;
+    .vortex:active { transform: scale(.93); }
+    .vortex::before {
+      content: ''; position: absolute; inset: -7px; border-radius: 999px;
+      background: conic-gradient(from 0deg, transparent 12%, var(--accent) 37%, var(--accent-2) 50%, transparent 62%, transparent 100%);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px));
+      mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px));
+      animation: spin 3.2s linear infinite;
+      opacity: .9;
+    }
+    .vortex::after {
+      content: ''; position: absolute; inset: -16px; border-radius: 999px;
+      background: radial-gradient(circle, rgba(34,211,238,.16) 0%, transparent 68%);
+      animation: breathe 2.8s ease-in-out infinite;
+      pointer-events: none;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .scanning-label {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--muted);
-    }
+    @keyframes breathe { 0%,100% { opacity:.55; transform: scale(.96);} 50% { opacity:1; transform: scale(1.05);} }
 
-    /* ─── Inspector ─── */
-    #stateInspector { gap: 16px; }
-    .thumb-wrap {
-      width: 100%;
-      aspect-ratio: 16/9;
-      background: var(--surface-2);
+    .bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; position: relative; }
+    .bar > div {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--ok));
+      transition: width .3s ease;
       position: relative;
       overflow: hidden;
     }
-    .thumb-wrap img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .bar.live > div::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%);
+      background-size: 200% 100%;
+      animation: sweep 1.4s linear infinite;
     }
-    .thumb-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to top, rgba(6,10,19,.9) 0%, transparent 50%);
-    }
-    .thumb-badge {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      padding: 4px 10px;
-      border-radius: 8px;
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      background: rgba(34,211,238,.15);
-      border: 1px solid rgba(34,211,238,.3);
-      color: var(--accent);
-      backdrop-filter: blur(8px);
-    }
-    .thumb-duration {
-      position: absolute;
-      bottom: 12px;
-      right: 12px;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 10px;
-      font-weight: 700;
-      font-family: monospace;
-      background: rgba(0,0,0,.7);
-      color: #fff;
-      backdrop-filter: blur(4px);
-    }
-    .inspector-meta {
-      padding: 16px 16px 0;
-    }
-    .inspector-uploader {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 6px;
-    }
-    .inspector-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #fff;
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
+    @keyframes sweep { to { background-position: -200% 0; } }
 
-    /* ─── Quality picker ─── */
-    .quality-section {
-      padding: 16px;
-      border-top: 1px solid var(--line);
-      margin-top: 16px;
-    }
-    .quality-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-    .quality-list { display: flex; flex-direction: column; gap: 8px; }
-    .quality-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1.5px solid var(--line);
-      cursor: pointer;
-      transition: border-color .15s, background .15s;
-      background: transparent;
-      width: 100%;
-      text-align: left;
-    }
-    .quality-item:hover { border-color: rgba(34,211,238,.3); background: rgba(34,211,238,.04); }
-    .quality-item.selected {
-      border-color: var(--accent);
-      background: rgba(34,211,238,.08);
-    }
-    .quality-left { display: flex; align-items: center; gap: 10px; }
-    .quality-badge {
-      font-size: 10px;
-      font-weight: 800;
-      font-family: monospace;
-      padding: 3px 8px;
-      border-radius: 7px;
+    .sheet {
       background: var(--surface-2);
-      color: var(--muted);
-      transition: background .15s, color .15s;
-    }
-    .quality-item.selected .quality-badge {
-      background: var(--accent);
-      color: #000;
-    }
-    .quality-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-    }
-    .quality-ext {
-      font-size: 9px;
-      font-family: monospace;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-    .quality-check {
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      border: 2px solid var(--line);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px;
-      color: transparent;
-      transition: border-color .15s, background .15s, color .15s;
-      flex-shrink: 0;
-    }
-    .quality-item.selected .quality-check {
-      border-color: var(--accent);
-      background: var(--accent);
-      color: #000;
-    }
-
-    /* Download button */
-    .btn-download {
-      width: 100%;
-      margin-top: 16px;
-      padding: 16px;
-      border: none;
-      border-radius: 16px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #000;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: opacity .2s, transform .15s;
-    }
-    .btn-download:hover { opacity: .9; }
-    .btn-download:active { transform: scale(.98); }
-    .btn-back {
-      width: 100%;
-      margin-top: 8px;
-      padding: 14px;
       border: 1px solid var(--line);
-      border-radius: 16px;
-      background: transparent;
-      color: var(--muted);
-      font-family: var(--font);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .15s, color .15s;
+      border-radius: 26px 26px 22px 22px;
+      box-shadow: 0 -12px 60px rgba(0,0,0,.6);
+      transition: transform .25s cubic-bezier(.4,0,.2,1);
     }
-    .btn-back:hover { background: var(--surface); color: var(--text); }
+    .grabber { width: 44px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.16); margin: 10px auto 4px; cursor: grab; touch-action: none; }
 
-    /* ─── Downloading ─── */
-    #stateDownloading { padding: 40px 0; text-align: center; }
-    .dl-spinner {
-      width: 56px; height: 56px;
-      border: 3px solid var(--line);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+    .dock {
+      background: rgba(13, 20, 33, 0.78);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 24px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
     }
-    .dl-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 6px;
+    .nav-item {
+      color: #8A94A7;
+      border-radius: 18px;
+      transition: all .2s ease;
     }
-    .dl-sub {
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-    .progress-bar-wrap {
-      width: 100%;
-      max-width: 320px;
-      height: 4px;
-      background: var(--surface-2);
-      border-radius: 4px;
-      margin: 20px auto 0;
-      overflow: hidden;
-    }
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      border-radius: 4px;
-      width: 0%;
-      transition: width .3s;
-      animation: progress-shimmer 1.5s ease-in-out infinite;
-    }
-    @keyframes progress-shimmer {
-      0%, 100% { opacity: 1; }
-      50% { opacity: .6; }
+    .nav-item.on {
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.08);
     }
 
-    /* ─── Done ─── */
-    #stateDone { padding: 52px 0; text-align: center; }
-    .done-icon {
-      width: 64px; height: 64px;
-      border-radius: 50%;
-      background: rgba(52,211,153,.12);
-      border: 2px solid rgba(52,211,153,.3);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 26px;
-      margin: 0 auto 20px;
-    }
-    .done-title {
-      font-size: 20px;
-      font-weight: 800;
-      color: #fff;
-      margin-bottom: 8px;
-    }
-    .done-sub {
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 28px;
-      line-height: 1.5;
-    }
-    .btn-another {
-      display: inline-block;
-      padding: 14px 32px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #000;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 800;
-      cursor: pointer;
-      border: none;
-      transition: opacity .2s;
-    }
-    .btn-another:hover { opacity: .9; }
-
-    /* ─── iOS save tip ─── */
-    .ios-tip {
-      display: none;
-      width: 100%;
-      margin-top: 16px;
-      padding: 14px 16px;
-      background: rgba(34,211,238,.07);
-      border: 1px solid rgba(34,211,238,.2);
-      border-radius: 14px;
-      font-size: 12px;
-      color: var(--accent);
-      line-height: 1.5;
-      text-align: center;
-    }
-    .ios-tip strong { font-weight: 700; }
-    .btn-open-ios {
-      margin-top: 10px;
-      width: 100%;
-      padding: 13px;
-      border: 1px solid rgba(34,211,238,.3);
+    .skel {
+      background: linear-gradient(100deg, rgba(255,255,255,0.05) 30%, rgba(255,255,255,0.11) 50%, rgba(255,255,255,0.05) 70%);
+      background-size: 200% 100%;
+      animation: shimmer 1.3s infinite linear;
       border-radius: 12px;
-      background: rgba(34,211,238,.07);
-      color: var(--accent);
-      font-family: var(--font);
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
     }
+    @keyframes shimmer { to { background-position: -200% 0; } }
 
-    /* ─── Error ─── */
-    #stateError { padding: 52px 0; text-align: center; }
-    .error-icon {
-      width: 64px; height: 64px;
-      border-radius: 50%;
-      background: rgba(251,113,133,.10);
-      border: 2px solid rgba(251,113,133,.25);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 26px;
-      margin: 0 auto 20px;
-    }
-    .error-title {
-      font-size: 18px;
-      font-weight: 800;
-      color: #fff;
-      margin-bottom: 8px;
-    }
-    .error-msg {
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 24px;
-      line-height: 1.5;
-      max-width: 340px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .btn-retry {
-      padding: 14px 32px;
-      border-radius: 16px;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
+    .fade-in { animation: fadeIn .28s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
 
-    /* ─── Toast ─── */
-    .toast {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-80px);
-      z-index: 100;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 12px 18px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 260px;
-      max-width: 90vw;
-      box-shadow: 0 8px 32px rgba(0,0,0,.5);
-      transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
-      opacity: 0;
-    }
-    .toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-    .toast-icon {
-      width: 28px; height: 28px;
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px;
-      flex-shrink: 0;
-    }
-    .toast-body { flex: 1; }
-    .toast-title { font-size: 12px; font-weight: 700; color: #fff; }
-    .toast-msg { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .pop { animation: pop .35s cubic-bezier(.34,1.56,.64,1) both; }
+    @keyframes pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
 
-    /* ─── Footer ─── */
-    footer {
-      width: 100%;
-      max-width: 560px;
-      padding: 32px 0 16px;
-      text-align: center;
-      border-top: 1px solid var(--line);
-      margin-top: 40px;
-    }
-    .footer-links { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
-    .footer-link {
-      font-size: 12px;
-      color: var(--muted);
-      text-decoration: none;
-      font-weight: 600;
-      transition: color .15s;
-    }
-    .footer-link:hover { color: var(--accent); }
-    .footer-copy {
-      font-size: 11px;
-      color: var(--surface-2);
-      margin-top: 10px;
-    }
+    .safe-top { padding-top: max(env(safe-area-inset-top, 14px), 14px); }
+    .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom, 14px), 14px); }
 
-    /* ─── Animations ─── */
-    .fade-in {
-      animation: fadeIn .3s ease-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 4px; }
 
-    /* ─── Responsive ─── */
-    @media (min-width: 600px) {
-      .hero { padding: 64px 0 48px; }
-      .hero-title { font-size: 44px; }
-    }
+    input, input:focus { outline: none; }
   </style>
 </head>
-<body>
+<body class="min-h-full flex flex-col overflow-x-hidden select-none">
 
-  <!-- Toast -->
-  <div class="toast" id="toast">
-    <div class="toast-icon" id="toastIcon">⚡</div>
-    <div class="toast-body">
-      <p class="toast-title" id="toastTitle">Info</p>
-      <p class="toast-msg" id="toastMsg"></p>
+  <!-- TOAST -->
+  <div id="appToast" class="fixed top-3 inset-x-4 z-50 transition-all duration-300 ease-out -translate-y-28 opacity-0 pointer-events-none flex justify-center">
+    <div class="max-w-md w-full py-3 px-4 rounded-2xl dock flex items-center gap-3 pointer-events-auto">
+      <div id="toastIcon" class="w-9 h-9 rounded-xl bg-cyan-400/15 border border-cyan-300/25 flex items-center justify-center text-sm font-bold text-cyan-300">⚡</div>
+      <div class="min-w-0 flex-1">
+        <p id="toastTitle" class="text-[13px] font-extrabold text-white truncate">DOWNI</p>
+        <p id="toastMsg" class="text-[11px] text-zinc-400 truncate">Notification</p>
+      </div>
+      <button onclick="hideToast()" class="text-zinc-500 hover:text-white text-xs px-2 py-1">✕</button>
     </div>
   </div>
 
-  <div class="page">
-    <header>
-      <div class="logo">
-        <div class="logo-icon">⚡</div>
-        <span class="logo-text">DOWN<span>I</span></span>
+  <div class="mx-auto flex min-h-screen w-full max-w-xl flex-col">
+
+    <!-- HEADER -->
+    <header class="sticky top-0 z-30 flex items-center justify-between px-5 pt-3 pb-3 safe-top border-b border-white/5" style="background:rgba(6,10,19,.9); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl overflow-hidden border border-white/10 shadow-lg flex-shrink-0">
+          <img src="assets/logo.png" alt="DOWNI" class="w-full h-full object-cover">
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-[19px] font-extrabold tracking-tight text-white leading-none">DOWNI</span>
+            <span id="headerVersionBadge" class="chip text-[9px] font-mono font-bold px-2 py-0.5">WEB</span>
+          </div>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span id="engineDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <p class="text-[10px] font-semibold" style="color:var(--muted)">Grab any video. One tap.</p>
+          </div>
+        </div>
       </div>
-      <span class="version-badge">v2.6.3</span>
+      <button onclick="switchTab('settings')" class="btn w-10 h-10 flex items-center justify-center" title="Settings">
+        <svg viewBox="0 0 24 24" class="w-5 h-5 text-zinc-300" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>
+        </svg>
+      </button>
     </header>
 
-    <main>
+    <main class="flex-1 px-4 pt-5 pb-28">
 
-      <!-- ═══ STATE: HOME ═══ -->
-      <div class="state active fade-in" id="stateHome">
-        <div class="hero">
-          <p class="hero-eyebrow">Free · No signup · No watermarks</p>
-          <h1 class="hero-title">Grab any video.<br>One tap.</h1>
-          <p class="hero-sub">YouTube, Instagram, TikTok, Twitter and more.<br>Works on iPhone, Android, and PC.</p>
+      <!-- ================= TAB 1: GRAB ================= -->
+      <div id="viewGrab" class="space-y-4">
 
-          <div class="platforms">
-            <div class="platform-pill yt"><div class="dot"></div>YouTube</div>
-            <div class="platform-pill ig"><div class="dot"></div>Instagram</div>
-            <div class="platform-pill tt"><div class="dot"></div>TikTok</div>
-            <div class="platform-pill tw"><div class="dot"></div>Twitter/X</div>
-            <div class="platform-pill fb"><div class="dot"></div>Facebook</div>
-          </div>
-        </div>
-
-        <div class="card" style="padding:6px">
-          <div class="input-card" style="margin-top:0; border:none; border-radius:14px; background:transparent;">
-            <span class="input-icon">🔗</span>
-            <input
-              class="url-input"
-              id="urlInput"
-              type="url"
-              placeholder="Paste a video link here…"
-              autocomplete="off"
-              autocorrect="off"
-              spellcheck="false"
-            >
-            <button class="btn-clear" id="btnClear" onclick="clearInput()">✕</button>
-            <button class="btn-paste" id="btnPaste" onclick="pasteFromClipboard()">Paste</button>
-          </div>
-          <button class="btn-grab" id="btnGrab" onclick="handleGrab()" disabled>GRAB THIS LINK ⚡</button>
-        </div>
-      </div>
-
-      <!-- ═══ STATE: SCANNING ═══ -->
-      <div class="state" id="stateScanning">
-        <div class="spinner"></div>
-        <p class="scanning-label">Scanning link…</p>
-      </div>
-
-      <!-- ═══ STATE: INSPECTOR ═══ -->
-      <div class="state" id="stateInspector">
-        <div class="card fade-in">
-          <div class="thumb-wrap">
-            <img id="infoThumb" src="" alt="" onerror="this.style.display='none'">
-            <div class="thumb-overlay"></div>
-            <span class="thumb-badge" id="infoPlatform">VIDEO</span>
-            <span class="thumb-duration" id="infoDuration"></span>
-          </div>
-
-          <div class="inspector-meta">
-            <p class="inspector-uploader" id="infoUploader"></p>
-            <h2 class="inspector-title" id="infoTitle">Video Title</h2>
-          </div>
-
-          <div class="quality-section">
-            <p class="quality-label">Choose Quality</p>
-            <div class="quality-list" id="qualityList"></div>
-          </div>
-
-          <div style="padding:0 16px 16px">
-            <button class="btn-download" onclick="handleDownload()">⬇ Download</button>
-            <div class="ios-tip" id="iosTip">
-              <strong>iPhone tip:</strong> Your video will open in a new tab.<br>
-              Tap and hold the video → <strong>Save to Photos</strong> or <strong>Save to Files</strong>.
-              <button class="btn-open-ios" id="btnOpenIos" onclick="openIosUrl()">Open Video in New Tab</button>
+        <!-- Clipboard banner -->
+        <div id="clipboardBanner" class="hidden card card-accent p-4 flex items-center justify-between gap-3 fade-in">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-xl bg-cyan-400/15 border border-cyan-300/20 flex items-center justify-center text-base flex-shrink-0">📋</div>
+            <div class="min-w-0">
+              <p class="text-[10px] uppercase font-extrabold tracking-widest text-cyan-300">Link detected</p>
+              <p id="clipboardUrlText" class="text-xs font-mono text-zinc-300 truncate max-w-[170px] sm:max-w-xs">https://…</p>
             </div>
-            <button class="btn-back" onclick="goHome()">← Grab another link</button>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button onclick="handleGrabClipboardLink()" class="btn px-3 py-2 text-[11px] font-bold text-zinc-300">Inspect</button>
+            <button onclick="handleClipboardFastDl()" class="btn-hero px-3.5 py-2 text-[11px] font-extrabold">⚡ Grab</button>
           </div>
         </div>
-      </div>
 
-      <!-- ═══ STATE: DOWNLOADING ═══ -->
-      <div class="state" id="stateDownloading">
-        <div class="dl-spinner"></div>
-        <p class="dl-title">Downloading…</p>
-        <p class="dl-sub" id="dlSub">This may take a moment<br>depending on file size.</p>
-        <div class="progress-bar-wrap">
-          <div class="progress-bar-fill" id="progressFill"></div>
+        <!-- HERO -->
+        <div class="card p-5 space-y-5 fade-in">
+          <div class="flex flex-col items-center pt-2">
+            <div class="vortex" onclick="handleFastDlClick()">
+              <img src="assets/logo.png" alt="Fast DL" class="w-[72px] h-[72px] rounded-full object-cover">
+            </div>
+            <p class="mt-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white">Tap the vortex</p>
+            <p class="text-[10px] mt-0.5" style="color:var(--muted)">Grabs whatever link is on your clipboard — instantly</p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="h-px flex-1" style="background:var(--line)"></div>
+            <span class="text-[9px] font-extrabold uppercase tracking-widest" style="color:var(--muted)">or paste a link</span>
+            <div class="h-px flex-1" style="background:var(--line)"></div>
+          </div>
+
+          <div class="relative flex items-center">
+            <div class="absolute left-4 pointer-events-none text-zinc-500">
+              <svg viewBox="0 0 24 24" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              </svg>
+            </div>
+            <input id="inputManualUrl" type="url" placeholder="Paste a video link…"
+              class="w-full bg-black/40 border border-white/10 rounded-2xl pl-11 pr-20 py-4 text-[13px] text-white placeholder-zinc-500 font-mono focus:border-cyan-300/50 transition"
+              oninput="handleUrlInputChanged()" />
+            <div class="absolute right-2.5 flex items-center gap-1">
+              <button id="btnClearInput" onclick="clearManualUrl()" class="hidden px-1.5 text-zinc-500 hover:text-white text-sm">✕</button>
+              <button onclick="handlePasteButton()" class="btn px-3 py-2 text-[11px] font-bold text-cyan-300">Paste</button>
+            </div>
+          </div>
+
+          <button id="btnInspectLink" onclick="handleInspectButtonClick()" class="btn-hero w-full py-4 text-[13px] font-extrabold flex items-center justify-center gap-2">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <span id="btnInspectText">GRAB THIS LINK</span>
+          </button>
+
+          <div class="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">YouTube</span>
+            <span class="chip on px-2.5 py-1 text-[9px] font-bold">TikTok · HD</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">Instagram</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">Facebook</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">X</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">Reddit</span>
+          </div>
         </div>
+
+        <!-- Active downloads -->
+        <div id="activeDownloadsWrap" class="hidden space-y-3">
+          <div class="flex items-center justify-between px-1">
+            <h3 class="text-[13px] font-extrabold text-white">Active downloads</h3>
+            <button onclick="cancelAllDownloads()" class="text-[11px] font-bold" style="color:var(--bad)">Cancel all</button>
+          </div>
+          <div id="activeDownloads" class="space-y-3"></div>
+        </div>
+
+        <!-- iPhone hint -->
+        <div class="card p-4 flex items-center gap-3 fade-in">
+          <div class="w-10 h-10 rounded-2xl bg-cyan-400/12 border border-cyan-300/20 flex items-center justify-center text-cyan-300 text-base flex-shrink-0">📲</div>
+          <div class="min-w-0 flex-1">
+            <p class="text-[12px] font-extrabold text-white">IPHONE / SAFARI READY</p>
+            <p class="text-[10px] mt-0.5" style="color:var(--muted)">Tap Share → 'Add to Home Screen' for fullscreen app mode</p>
+          </div>
+        </div>
+
       </div>
 
-      <!-- ═══ STATE: DONE ═══ -->
-      <div class="state" id="stateDone">
-        <div class="done-icon">✓</div>
-        <h2 class="done-title">Grabbed! 🎉</h2>
-        <p class="done-sub" id="doneMsg">Your file has been saved.</p>
-        <button class="btn-another" onclick="goHome()">Grab another video</button>
+      <!-- ================= TAB 2: QUEUE ================= -->
+      <div id="viewQueue" class="hidden space-y-4">
+        <div class="flex items-center justify-between px-1">
+          <div>
+            <h2 class="text-[17px] font-extrabold text-white tracking-tight">Queue</h2>
+            <p class="text-[11px]" style="color:var(--muted)">Live downloads & history</p>
+          </div>
+          <button onclick="clearCompletedHistory()" class="btn px-3 py-2 text-[11px] font-bold text-zinc-400">Clear history</button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div class="card p-3.5 text-center">
+            <p id="statActive" class="text-xl font-extrabold font-mono text-cyan-300">0</p>
+            <p class="text-[9px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--muted)">Active</p>
+          </div>
+          <div class="card p-3.5 text-center">
+            <p id="statDone" class="text-xl font-extrabold font-mono text-emerald-300">0</p>
+            <p class="text-[9px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--muted)">Completed</p>
+          </div>
+          <div class="card p-3.5 text-center">
+            <p id="statSize" class="text-xl font-extrabold font-mono text-violet-300">0</p>
+            <p class="text-[9px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--muted)">MB grabbed</p>
+          </div>
+        </div>
+
+        <div id="queueActiveContainer" class="space-y-3"></div>
+        <div id="queueListContainer" class="space-y-2.5"></div>
       </div>
 
-      <!-- ═══ STATE: ERROR ═══ -->
-      <div class="state" id="stateError">
-        <div class="error-icon">✕</div>
-        <h2 class="error-title">Couldn't grab that</h2>
-        <p class="error-msg" id="errorMsg">Something went wrong.</p>
-        <button class="btn-retry" onclick="goHome()">Try again</button>
+      <!-- ================= TAB 3: VAULT ================= -->
+      <div id="viewVault" class="hidden space-y-4">
+        <div class="flex items-center justify-between px-1">
+          <div>
+            <h2 class="text-[17px] font-extrabold text-white tracking-tight">Vault</h2>
+            <p class="text-[11px]" style="color:var(--muted)">Your saved downloads session</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="refreshVault()" class="btn w-9 h-9 flex items-center justify-center text-zinc-300 text-sm">↻</button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="vaultChipAll" onclick="setVaultFilter('all')" class="chip on px-4 py-1.5 text-[10px] font-extrabold">ALL</button>
+          <button id="vaultChipVideo" onclick="setVaultFilter('video')" class="chip px-4 py-1.5 text-[10px] font-extrabold">VIDEO</button>
+          <button id="vaultChipAudio" onclick="setVaultFilter('audio')" class="chip px-4 py-1.5 text-[10px] font-extrabold">AUDIO</button>
+        </div>
+
+        <div id="vaultMediaGrid" class="grid grid-cols-2 gap-3"></div>
       </div>
 
+      <!-- ================= TAB 4: SETTINGS ================= -->
+      <div id="viewSettings" class="hidden space-y-4">
+
+        <h2 class="text-[17px] font-extrabold text-white tracking-tight px-1">Settings</h2>
+
+        <!-- Android App banner -->
+        <div class="card p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-cyan-400/12 border border-cyan-300/20 flex items-center justify-center text-base">🤖</div>
+              <div>
+                <p class="text-[12px] font-extrabold text-white">DOWNI for Android</p>
+                <p class="text-[11px] font-mono text-cyan-300 mt-0.5">v2.6.3 APK available</p>
+              </div>
+            </div>
+            <button onclick="openGitHubRepo()" class="btn-hero px-4 py-2.5 text-[11px] font-extrabold">Download APK</button>
+          </div>
+          <p class="text-[11px] leading-relaxed" style="color:var(--muted)">
+            Android users get native gallery integration, background share downloads, and true on-device extraction.
+          </p>
+        </div>
+
+        <!-- Appearance -->
+        <div class="card p-4 space-y-1">
+          <p class="text-[12px] font-extrabold text-white px-1 pb-2">Appearance</p>
+          <div class="flex items-center justify-between py-3 border-t border-white/5">
+            <div>
+              <p class="text-[12px] font-bold text-zinc-200">Light theme</p>
+              <p class="text-[10px] mt-0.5" style="color:var(--muted)">Switch to a bright interface</p>
+            </div>
+            <input type="checkbox" id="chkLightTheme" onchange="applyTheme(this.checked ? 'light' : 'dark')" class="w-5 h-5 accent-cyan-400">
+          </div>
+        </div>
+
+        <!-- Engine Status -->
+        <div class="card p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-emerald-400/10 border border-emerald-300/20 flex items-center justify-center text-base">⚙️</div>
+              <div>
+                <p class="text-[12px] font-extrabold text-white">Cloud Engine</p>
+                <p id="engineVersionText" class="text-[11px] mt-0.5" style="color:var(--muted)">yt-dlp 2026.8.19 (Serverless)</p>
+              </div>
+            </div>
+            <span id="engineHealthBadge" class="chip px-3 py-1 text-[9px] font-mono font-bold text-emerald-400 border-emerald-400/30">ONLINE</span>
+          </div>
+        </div>
+
+        <!-- About -->
+        <div class="card p-4 space-y-1">
+          <p class="text-[12px] font-extrabold text-white px-1 pb-2">About</p>
+          <div class="flex items-center justify-between py-2.5 border-t border-white/5">
+            <span class="text-[11px]" style="color:var(--muted)">App</span>
+            <span class="text-[12px] font-bold text-zinc-200">DOWNI Web <span id="aboutVersion" class="font-mono text-[10px] text-zinc-400">v2.6.3</span></span>
+          </div>
+          <div class="flex items-center justify-between py-2.5 border-t border-white/5">
+            <span class="text-[11px]" style="color:var(--muted)">Engine</span>
+            <span class="text-[10px] font-mono text-zinc-300">yt-dlp (Python 3.11)</span>
+          </div>
+          <div class="flex items-center justify-between py-2.5 border-t border-white/5">
+            <span class="text-[11px]" style="color:var(--muted)">Developer</span>
+            <span class="text-[12px] font-bold text-zinc-200">MansoorjAhmad</span>
+          </div>
+          <button onclick="openGitHubRepo()" class="btn w-full py-3 mt-2 text-[11px] font-extrabold text-cyan-300">⭐ Star DOWNI on GitHub</button>
+        </div>
+
+      </div>
     </main>
 
-    <footer>
-      <div class="footer-links">
-        <a class="footer-link" href="https://github.com/MansoorjAhmad/Downi/releases/latest" target="_blank">⬇ Android App</a>
-        <a class="footer-link" href="https://github.com/MansoorjAhmad/Downi" target="_blank">GitHub</a>
-        <a class="footer-link" href="#" onclick="showToast('DOWNI Web','v2.6.3 — built with ⚡ by MansoorjAhmad','info'); return false;">About</a>
+    <!-- DOCK -->
+    <nav class="fixed bottom-3 inset-x-4 max-w-md mx-auto z-40 dock p-1.5 flex items-center justify-around safe-bottom">
+      <button id="navGrab" onclick="switchTab('grab')" class="nav-item on flex-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] font-bold">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        <span>Grab</span>
+      </button>
+      <button id="navQueue" onclick="switchTab('queue')" class="nav-item flex-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] font-semibold relative">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M4 6h16M4 12h16M4 18h7"/>
+        </svg>
+        <span>Queue</span>
+        <span id="queueBadge" class="hidden absolute top-1.5 right-5 w-2 h-2 rounded-full" style="background:var(--accent)"></span>
+      </button>
+      <button id="navVault" onclick="switchTab('vault')" class="nav-item flex-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] font-semibold">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="2" y="2" width="20" height="20" rx="3"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/>
+        </svg>
+        <span>Vault</span>
+      </button>
+      <button id="navSettings" onclick="switchTab('settings')" class="nav-item flex-1 py-2.5 flex flex-col items-center gap-0.5 text-[10px] font-semibold">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>
+        </svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- INSPECTOR SHEET -->
+  <div id="inspectorModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-md" onclick="closeInspector()"></div>
+    <div id="inspectorSheet" class="absolute inset-x-0 bottom-0 sheet p-5 pb-7 max-h-[88vh] overflow-y-auto max-w-xl mx-auto">
+      <div class="grabber" data-drag-dismiss="inspectorSheet"></div>
+      <div class="flex items-center justify-between mt-2 mb-4">
+        <span id="inspectorPlatformBadge" class="chip on px-3 py-1 text-[9px] font-extrabold uppercase tracking-widest">Video</span>
+        <button onclick="closeInspector()" class="btn w-9 h-9 flex items-center justify-center text-zinc-400 text-sm">✕</button>
       </div>
-      <p class="footer-copy">DOWNI Web · For personal use only · Respect copyright.</p>
-    </footer>
+
+      <div class="aspect-video w-full rounded-2xl bg-black/60 overflow-hidden relative mb-4" style="border:1px solid rgba(255,255,255,.08)">
+        <div id="inspectorThumbSkel" class="absolute inset-0 skel"></div>
+        <img id="inspectorThumbnail" src="assets/logo.png" class="w-full h-full object-cover" onload="document.getElementById('inspectorThumbSkel').style.display='none'">
+        <span id="inspectorDuration" class="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold text-white">0:00</span>
+      </div>
+
+      <h3 id="inspectorTitle" class="text-[15px] font-extrabold text-white leading-snug line-clamp-2">Video title</h3>
+      <p id="inspectorUploader" class="text-[11px] mt-1" style="color:var(--muted)">Creator</p>
+
+      <p class="text-[10px] font-extrabold uppercase tracking-widest mt-5 mb-2" style="color:var(--muted)">Quality</p>
+      <div id="inspectorQualitiesList" class="space-y-2">
+        <div class="skel h-14"></div><div class="skel h-14"></div><div class="skel h-14"></div>
+      </div>
+
+      <div id="iosTipNotice" class="hidden mt-3 p-3 rounded-xl bg-cyan-400/10 border border-cyan-300/20 text-[11px] text-cyan-200">
+        💡 <b>iPhone users:</b> After tapping Download, if Safari plays video in browser, tap Share icon → <b>Save to Files / Photos</b>.
+      </div>
+
+      <button id="btnConfirmDownloadQuality" onclick="proceedSelectedQualityDownload()" class="btn-hero w-full py-4 mt-4 text-[13px] font-extrabold">
+        <span id="btnConfirmDownloadText">Download</span>
+      </button>
+      <button onclick="closeInspector()" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ERROR SHEET -->
+  <div id="errorModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-md" onclick="closeErrorModal()"></div>
+    <div id="errorSheet" class="absolute inset-x-0 bottom-0 sheet p-5 pb-7 max-w-xl mx-auto">
+      <div class="grabber" data-drag-dismiss="errorSheet"></div>
+      <div class="flex items-center gap-3 mt-3 mb-4">
+        <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-lg font-bold" style="background:rgba(251,113,133,.12); border:1px solid rgba(251,113,133,.3); color:var(--bad)">!</div>
+        <div class="min-w-0">
+          <h3 class="text-[14px] font-extrabold text-white" id="errorModalTitle">Download stopped</h3>
+          <p class="text-[10px]" style="color:var(--muted)">DOWNI engine</p>
+        </div>
+      </div>
+      <p id="errorModalMessage" class="text-[12px] leading-relaxed text-zinc-300">Could not extract video.</p>
+      <div id="errorTechnicalDetailsBox" class="hidden mt-3 p-3 rounded-xl bg-black/40 border border-white/5 font-mono text-[10px] text-zinc-400 break-all max-h-36 overflow-y-auto">
+        <span id="errorModalDetails"></span>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button id="btnToggleErrorDetails" onclick="toggleErrorDetails()" class="btn flex-1 py-3 text-[11px] font-bold text-zinc-300">View details</button>
+        <button onclick="retryCurrentDownload()" class="btn-hero flex-1 py-3 text-[11px] font-extrabold">Retry</button>
+      </div>
+      <button onclick="closeErrorModal()" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400">Dismiss</button>
+    </div>
   </div>
 
   <script>
-    // ═══════════════════════════════════════════
-    //  State
-    // ═══════════════════════════════════════════
+    const GITHUB_REPO = 'MansoorjAhmad/Downi';
     const API_HDR = { 'X-Downi-Web': '1', 'Content-Type': 'application/json' };
-    let currentUrl = '';
-    let currentFormats = [];
-    let selectedFormat = 'best';
-    let iosCdnUrl = '';
-    let iosFilename = '';
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-    // ═══════════════════════════════════════════
-    //  Navigation
-    // ═══════════════════════════════════════════
-    function showState(id) {
-      document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
-      const el = document.getElementById(id);
-      if (el) { el.classList.add('active'); el.classList.add('fade-in'); }
+    let currentTab = 'grab';
+    let currentInspectedUrl = '';
+    let selectedInspectorQuality = 'best';
+    let inspectedFormats = [];
+    let detectedClipboardUrl = '';
+
+    let downloadsHistory = [];
+    const activeJobs = new Map();
+    let completedCount = 0;
+    let grabbedBytes = 0;
+
+    let vaultItems = [];
+    let vaultFilter = 'all';
+    let lastFailedUrl = '';
+    let lastFailedFormat = 'best';
+    let currentRawError = '';
+
+    // ================= Navigation =================
+    function switchTab(tab) {
+      currentTab = tab;
+      ['viewGrab', 'viewQueue', 'viewVault', 'viewSettings'].forEach(id => {
+        document.getElementById(id)?.classList.add('hidden');
+      });
+      ['navGrab', 'navQueue', 'navVault', 'navSettings'].forEach(id => {
+        document.getElementById(id)?.classList.remove('on');
+      });
+      const view = { grab: 'viewGrab', queue: 'viewQueue', vault: 'viewVault', settings: 'viewSettings' }[tab];
+      const nav = { grab: 'navGrab', queue: 'navQueue', vault: 'navVault', settings: 'navSettings' }[tab];
+      const el = document.getElementById(view);
+      if (el) {
+        el.classList.remove('hidden');
+        el.classList.remove('fade-in');
+        void el.offsetWidth;
+        el.classList.add('fade-in');
+      }
+      document.getElementById(nav)?.classList.add('on');
+
+      if (tab === 'queue') renderQueueTab();
+      if (tab === 'vault') refreshVault();
+      if (tab === 'grab') renderJobCards();
     }
 
-    function goHome() {
-      showState('stateHome');
-      document.getElementById('urlInput').value = '';
-      document.getElementById('btnGrab').disabled = true;
-      document.getElementById('btnClear').style.display = 'none';
-      currentUrl = '';
-      iosCdnUrl = '';
+    // ================= Toast =================
+    function showToast(title, msg, type = 'info') {
+      document.getElementById('toastTitle').innerText = title;
+      document.getElementById('toastMsg').innerText = msg;
+      const icon = document.getElementById('toastIcon');
+      if (type === 'success') {
+        icon.innerText = '✓';
+        icon.style.cssText = 'background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35);color:var(--ok)';
+      } else if (type === 'error') {
+        icon.innerText = '✕';
+        icon.style.cssText = 'background:rgba(251,113,133,.14);border-color:rgba(251,113,133,.35);color:var(--bad)';
+      } else {
+        icon.innerText = '⚡';
+        icon.style.cssText = 'background:rgba(34,211,238,.14);border-color:rgba(34,211,238,.35);color:var(--accent)';
+      }
+      const toast = document.getElementById('appToast');
+      toast.classList.remove('-translate-y-28', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(hideToast, 3500);
+    }
+    function hideToast() {
+      const toast = document.getElementById('appToast');
+      toast.classList.add('-translate-y-28', 'opacity-0');
+      toast.classList.remove('translate-y-0', 'opacity-100');
     }
 
-    // ═══════════════════════════════════════════
-    //  Input handling
-    // ═══════════════════════════════════════════
-    const urlInput = document.getElementById('urlInput');
-    urlInput.addEventListener('input', onInputChange);
-    urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleGrab(); });
-
-    function onInputChange() {
-      const v = urlInput.value.trim();
-      document.getElementById('btnGrab').disabled = !v.startsWith('http');
-      document.getElementById('btnClear').style.display = v ? 'block' : 'none';
-    }
-
-    function clearInput() {
-      urlInput.value = '';
-      onInputChange();
-      urlInput.focus();
-    }
-
-    async function pasteFromClipboard() {
+    // ================= Clipboard =================
+    async function checkClipboard() {
       try {
+        if (!navigator.clipboard?.readText) return;
         const text = await navigator.clipboard.readText();
-        if (text) {
-          urlInput.value = text.trim();
-          onInputChange();
-          if (text.trim().startsWith('http')) handleGrab();
+        if (text && /^https?:\/\//i.test(text.trim())) {
+          const clean = extractUrl(text);
+          if (clean && clean !== detectedClipboardUrl) {
+            detectedClipboardUrl = clean;
+            document.getElementById('clipboardUrlText').innerText = clean;
+            document.getElementById('clipboardBanner')?.classList.remove('hidden');
+          }
+        }
+      } catch (e) {}
+    }
+
+    function handleGrabClipboardLink() {
+      if (detectedClipboardUrl) {
+        document.getElementById('inputManualUrl').value = detectedClipboardUrl;
+        document.getElementById('clipboardBanner')?.classList.add('hidden');
+        handleInspectAndOpenModal(detectedClipboardUrl);
+      }
+    }
+
+    function handleClipboardFastDl() {
+      if (detectedClipboardUrl) {
+        document.getElementById('inputManualUrl').value = detectedClipboardUrl;
+        document.getElementById('clipboardBanner')?.classList.add('hidden');
+        currentInspectedUrl = detectedClipboardUrl;
+        initiateDownload(detectedClipboardUrl, 'best');
+      }
+    }
+
+    async function handlePasteButton() {
+      try {
+        if (navigator.clipboard?.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            document.getElementById('inputManualUrl').value = text.trim();
+            handleUrlInputChanged();
+          }
         }
       } catch (e) {
-        urlInput.focus();
-        showToast('Paste manually', 'Tap the input and paste your link.', 'info');
+        document.getElementById('inputManualUrl').focus();
+        showToast('Paste manually', 'Tap the input field to paste your link.', 'info');
       }
     }
 
-    // ═══════════════════════════════════════════
-    //  Grab → Info
-    // ═══════════════════════════════════════════
-    async function handleGrab() {
-      const raw = urlInput.value.trim();
-      if (!raw.startsWith('http')) {
-        showToast('Paste a link first', 'Copy a video URL and try again.', 'error');
+    function handleUrlInputChanged() {
+      const val = document.getElementById('inputManualUrl').value.trim();
+      document.getElementById('btnClearInput').style.display = val ? 'block' : 'none';
+    }
+    function clearManualUrl() {
+      document.getElementById('inputManualUrl').value = '';
+      handleUrlInputChanged();
+    }
+
+    // ================= Fast DL & Inspect =================
+    async function handleFastDlClick() {
+      const vortex = document.querySelector('.vortex');
+      if (vortex) {
+        vortex.style.transform = 'scale(0.9)';
+        setTimeout(() => { vortex.style.transform = ''; }, 180);
+      }
+      let clean = extractUrl(document.getElementById('inputManualUrl').value.trim());
+      if (!clean) {
+        try {
+          if (navigator.clipboard?.readText) {
+            const text = await navigator.clipboard.readText();
+            clean = extractUrl(text);
+            if (clean) {
+              document.getElementById('inputManualUrl').value = clean;
+              handleUrlInputChanged();
+            }
+          }
+        } catch (e) {}
+      }
+      if (!clean) {
+        showToast('Fast DL needs a link', 'Copy any reel or video link, then tap the vortex.', 'info');
         return;
       }
-      currentUrl = raw;
-      showState('stateScanning');
+      currentInspectedUrl = clean;
+      initiateDownload(clean, 'best');
+    }
+
+    async function handleInspectButtonClick() {
+      let clean = extractUrl(document.getElementById('inputManualUrl').value.trim());
+      if (!clean) {
+        try {
+          if (navigator.clipboard?.readText) {
+            const text = await navigator.clipboard.readText();
+            clean = extractUrl(text);
+            if (clean) {
+              document.getElementById('inputManualUrl').value = clean;
+              handleUrlInputChanged();
+            }
+          }
+        } catch (e) {}
+      }
+      if (!clean) {
+        showToast('Paste a link first', 'Then tap GRAB THIS LINK.', 'info');
+        return;
+      }
+      handleInspectAndOpenModal(clean);
+    }
+
+    async function handleInspectAndOpenModal(url) {
+      currentInspectedUrl = url;
+      const btn = document.getElementById('btnInspectText');
+      if (btn) btn.innerText = 'SCANNING…';
+
+      document.getElementById('inspectorThumbSkel').style.display = '';
+      document.getElementById('inspectorThumbnail').src = 'assets/logo.png';
+      document.getElementById('inspectorTitle').innerText = 'Scanning qualities…';
+      document.getElementById('inspectorUploader').innerText = '';
+      document.getElementById('inspectorQualitiesList').innerHTML = '<div class="skel h-14"></div><div class="skel h-14"></div><div class="skel h-14"></div>';
+      if (isIOS) document.getElementById('iosTipNotice')?.classList.remove('hidden');
+      document.getElementById('inspectorModal')?.classList.remove('hidden');
 
       try {
         const res = await fetch('/api/info', {
           method: 'POST',
           headers: API_HDR,
-          body: JSON.stringify({ url: currentUrl }),
+          body: JSON.stringify({ url: url }),
         });
-        const data = await res.json();
+        const info = await res.json();
+        if (!info.ok) throw new Error(info.error || 'This link could not be inspected.');
 
-        if (!data.ok) throw new Error(data.error || 'Unknown error');
-
-        renderInspector(data);
-        showState('stateInspector');
-      } catch (err) {
-        document.getElementById('errorMsg').innerText = err.message || 'Could not read this link. Check it and try again.';
-        showState('stateError');
+        document.getElementById('inspectorThumbnail').src = info.thumbnail || 'assets/logo.png';
+        document.getElementById('inspectorTitle').innerText = info.title || 'Video';
+        document.getElementById('inspectorUploader').innerText = info.uploader ? `@${info.uploader}` : (info.platform || 'Media').toUpperCase();
+        document.getElementById('inspectorDuration').innerText = formatDuration(info.duration);
+        document.getElementById('inspectorPlatformBadge').innerText = (info.platform || 'video').toUpperCase();
+        inspectedFormats = info.formats || [];
+        renderInspectorQualities(inspectedFormats);
+      } catch (e) {
+        closeInspector();
+        showToast('Inspect failed', e?.message || 'Check the link and try again.', 'error');
+      } finally {
+        if (btn) btn.innerText = 'GRAB THIS LINK';
       }
     }
 
-    // ═══════════════════════════════════════════
-    //  Inspector rendering
-    // ═══════════════════════════════════════════
-    function renderInspector(data) {
-      currentFormats = data.formats || [];
-      selectedFormat = currentFormats[0]?.id || 'best';
-
-      // Thumbnail
-      const thumb = document.getElementById('infoThumb');
-      if (data.thumbnail) {
-        thumb.src = data.thumbnail;
-        thumb.style.display = '';
-      } else {
-        thumb.style.display = 'none';
+    function renderInspectorQualities(formats) {
+      if (!formats || formats.length === 0) {
+        formats = [
+          { id: 'best', label: 'Best Available Quality', ext: 'mp4', badge: 'Best' },
+          { id: '1080', label: '1080p Full HD', ext: 'mp4', badge: '1080p' },
+          { id: '720', label: '720p HD Quality', ext: 'mp4', badge: '720p' },
+          { id: '480', label: '480p Standard', ext: 'mp4', badge: '480p' },
+          { id: 'audio', label: 'Audio Only (MP3)', ext: 'm4a', badge: 'MP3' }
+        ];
       }
+      selectedInspectorQuality = formats[0].id;
+      updateConfirmButtonText(formats[0].label);
 
-      // Platform badge
-      const platform = (data.platform || 'video').toUpperCase();
-      document.getElementById('infoPlatform').innerText = platform;
-
-      // Duration
-      const dur = document.getElementById('infoDuration');
-      if (data.duration) {
-        const m = Math.floor(data.duration / 60);
-        const s = data.duration % 60;
-        dur.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-        dur.style.display = '';
-      } else {
-        dur.style.display = 'none';
-      }
-
-      // Meta
-      document.getElementById('infoUploader').innerText = data.uploader ? `@${data.uploader}` : '';
-      document.getElementById('infoTitle').innerText = data.title || 'Video';
-
-      // Quality list
-      const list = document.getElementById('qualityList');
-      list.innerHTML = currentFormats.map(fmt => `
-        <button
-          class="quality-item ${fmt.id === selectedFormat ? 'selected' : ''}"
-          id="qitem_${fmt.id}"
-          onclick="selectFormat('${fmt.id}')"
-        >
-          <div class="quality-left">
-            <span class="quality-badge">${fmt.badge}</span>
-            <div>
-              <p class="quality-name">${fmt.label}</p>
-              <p class="quality-ext">${fmt.ext}</p>
+      document.getElementById('inspectorQualitiesList').innerHTML = formats.map(fmt => `
+        <div id="quality_card_${fmt.id}" onclick="selectInspectorQuality('${fmt.id}', '${escapeHtml(fmt.label)}')"
+          class="quality-card flex items-center justify-between gap-3 p-3.5 rounded-2xl cursor-pointer transition ${fmt.id === selectedInspectorQuality ? 'chip on' : 'chip'}">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 ${fmt.id === selectedInspectorQuality ? 'bg-cyan-400 text-black' : 'bg-white/5 text-cyan-300'}">${fmt.badge || 'HD'}</span>
+            <div class="min-w-0">
+              <p class="text-[12px] font-bold text-white truncate">${escapeHtml(fmt.label)}</p>
+              <p class="text-[9px] font-mono uppercase mt-0.5" style="color:var(--muted)">${fmt.ext || 'mp4'}</p>
             </div>
           </div>
-          <div class="quality-check">${fmt.id === selectedFormat ? '✓' : ''}</div>
-        </button>
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${fmt.id === selectedInspectorQuality ? 'bg-cyan-400 text-black' : 'bg-white/5 text-zinc-400'}">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 3v13M7 11l5 5 5-5M5 21h14"/></svg>
+          </div>
+        </div>
       `).join('');
-
-      // iOS tip
-      document.getElementById('iosTip').style.display = isIOS ? 'block' : 'none';
     }
 
-    function selectFormat(id) {
-      selectedFormat = id;
-      document.querySelectorAll('.quality-item').forEach(el => {
-        const isSelected = el.id === `qitem_${id}`;
-        el.classList.toggle('selected', isSelected);
-        const badge = el.querySelector('.quality-badge');
-        const check = el.querySelector('.quality-check');
-        if (badge) badge.style.background = isSelected ? 'var(--accent)' : '';
-        if (badge) badge.style.color = isSelected ? '#000' : '';
-        if (check) check.innerText = isSelected ? '✓' : '';
-        if (check) {
-          check.style.borderColor = isSelected ? 'var(--accent)' : 'var(--line)';
-          check.style.background = isSelected ? 'var(--accent)' : 'transparent';
-          check.style.color = isSelected ? '#000' : 'transparent';
-        }
+    function selectInspectorQuality(fmtId, fmtLabel) {
+      selectedInspectorQuality = fmtId;
+      document.querySelectorAll('.quality-card').forEach(el => {
+        el.classList.remove('on');
+        const badge = el.querySelector('.qx');
+        if (badge) badge.className = 'qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 bg-white/5 text-cyan-300';
       });
+      const selectedEl = document.getElementById(`quality_card_${fmtId}`);
+      if (selectedEl) {
+        selectedEl.classList.add('on');
+        const badge = selectedEl.querySelector('.qx');
+        if (badge) badge.className = 'qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 bg-cyan-400 text-black';
+      }
+      updateConfirmButtonText(fmtLabel);
     }
 
-    // ═══════════════════════════════════════════
-    //  Download
-    // ═══════════════════════════════════════════
-    async function handleDownload() {
-      if (!currentUrl) return;
-      showState('stateDownloading');
+    function updateConfirmButtonText(label) {
+      const el = document.getElementById('btnConfirmDownloadText');
+      if (el) el.innerText = 'Download ' + label;
+    }
+    function proceedSelectedQualityDownload() {
+      closeInspector();
+      initiateDownload(currentInspectedUrl, selectedInspectorQuality);
+    }
+    function closeInspector() {
+      document.getElementById('inspectorModal')?.classList.add('hidden');
+    }
 
-      // Animate progress bar
-      let prog = 0;
-      const fill = document.getElementById('progressFill');
-      const progTimer = setInterval(() => {
-        prog = Math.min(prog + Math.random() * 8, 85);
-        fill.style.width = prog + '%';
-      }, 400);
+    // ================= Download Pipeline =================
+    async function initiateDownload(url, formatId) {
+      lastFailedUrl = url;
+      lastFailedFormat = formatId;
+
+      let label = 'Media';
+      try { label = new URL(url).hostname.replace('www.', ''); } catch (e) {}
+      if (formatId === 'audio') label += ' · MP3';
+
+      const jobId = 'job_' + Date.now();
+      const job = {
+        label,
+        status: 'Connecting…',
+        percent: 15,
+        size: '',
+        speed: '⚡ Live',
+        eta: '',
+        done: false,
+        controller: new AbortController()
+      };
+      activeJobs.set(jobId, job);
+      renderJobCards();
+      updateQueueBadge();
+      showToast('Grab started', 'DOWNI is processing video stream.', 'success');
 
       try {
-        if (isIOS) {
-          // iOS: resolve CDN URL, open in new tab
-          await downloadIOS();
-        } else {
-          // Desktop/Android: fetch → blob → save
-          await downloadBlob();
+        const payload = { url, formatId, ios: isIOS };
+        const res = await fetch('/api/stream', {
+          method: 'POST',
+          headers: API_HDR,
+          body: JSON.stringify(payload),
+          signal: job.controller.signal
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Server responded with ${res.status}`);
         }
-        clearInterval(progTimer);
-        fill.style.width = '100%';
-        setTimeout(() => {
-          showState('stateDone');
-          document.getElementById('doneMsg').innerText =
-            isIOS ? 'Tap and hold the video in the new tab → Save.' : 'Your file has been saved to your Downloads folder.';
-        }, 400);
+
+        if (isIOS) {
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.error || 'Failed to resolve iOS link');
+          job.percent = 100;
+          job.done = true;
+          onJobComplete(jobId, data.filename || 'Video', 'Browser tab');
+          window.open(data.cdnUrl, '_blank');
+          return;
+        }
+
+        // Direct stream download for desktop/android browsers
+        const contentLength = res.headers.get('Content-Length');
+        const total = contentLength ? parseInt(contentLength, 10) : 0;
+        let loaded = 0;
+
+        const reader = res.body.getReader();
+        const chunks = [];
+
+        job.status = 'Downloading…';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          loaded += value.length;
+          if (total) {
+            job.percent = Math.min(99, Math.round((loaded / total) * 100));
+            job.size = `${(loaded / (1024 * 1024)).toFixed(1)} MB / ${(total / (1024 * 1024)).toFixed(1)} MB`;
+          } else {
+            job.percent = Math.min(95, job.percent + 4);
+            job.size = `${(loaded / (1024 * 1024)).toFixed(1)} MB`;
+          }
+          renderJobCards();
+        }
+
+        const disp = res.headers.get('Content-Disposition') || '';
+        let filename = 'download.mp4';
+        const match = disp.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) filename = match[1];
+
+        const blob = new Blob(chunks);
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+
+        job.percent = 100;
+        job.done = true;
+        if (total) grabbedBytes += total;
+        onJobComplete(jobId, filename, 'Downloads folder');
 
       } catch (err) {
-        clearInterval(progTimer);
-        document.getElementById('errorMsg').innerText = err.message || 'Download failed. Please try again.';
-        showState('stateError');
-      }
-    }
-
-    async function downloadBlob() {
-      const res = await fetch('/api/stream', {
-        method: 'POST',
-        headers: API_HDR,
-        body: JSON.stringify({ url: currentUrl, formatId: selectedFormat }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Server error ${res.status}`);
-      }
-
-      const blob = await res.blob();
-      const fmt = currentFormats.find(f => f.id === selectedFormat) || {};
-      const title = document.getElementById('infoTitle').innerText || 'video';
-      const filename = `${title.slice(0, 60).replace(/[<>:"/\\|?*]/g, '')}.${fmt.ext || 'mp4'}`;
-
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    }
-
-    async function downloadIOS() {
-      const res = await fetch('/api/stream', {
-        method: 'POST',
-        headers: API_HDR,
-        body: JSON.stringify({ url: currentUrl, formatId: selectedFormat, ios: true }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Could not resolve link');
-
-      iosCdnUrl = data.cdnUrl;
-      iosFilename = data.filename;
-
-      // Open in new tab
-      window.open(iosCdnUrl, '_blank');
-    }
-
-    function openIosUrl() {
-      if (iosCdnUrl) window.open(iosCdnUrl, '_blank');
-    }
-
-    // ═══════════════════════════════════════════
-    //  Toast
-    // ═══════════════════════════════════════════
-    let toastTimer;
-    function showToast(title, msg, type = 'info') {
-      clearTimeout(toastTimer);
-      const toast = document.getElementById('toast');
-      const icon = document.getElementById('toastIcon');
-      document.getElementById('toastTitle').innerText = title;
-      document.getElementById('toastMsg').innerText = msg;
-
-      const styles = {
-        success: ['✓', 'rgba(52,211,153,.15)', 'rgba(52,211,153,.35)', 'var(--ok)'],
-        error:   ['✕', 'rgba(251,113,133,.15)', 'rgba(251,113,133,.35)', 'var(--bad)'],
-        info:    ['⚡', 'rgba(34,211,238,.15)',  'rgba(34,211,238,.35)',  'var(--accent)'],
-      };
-      const [ico, bg, border, color] = styles[type] || styles.info;
-      icon.innerText = ico;
-      icon.style.cssText = `background:${bg};border:1px solid ${border};color:${color}`;
-
-      toast.classList.add('show');
-      toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
-    }
-
-    // ═══════════════════════════════════════════
-    //  Clipboard auto-detect on focus
-    // ═══════════════════════════════════════════
-    urlInput.addEventListener('focus', async () => {
-      if (urlInput.value) return;
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text && text.trim().startsWith('http') && text !== urlInput.value) {
-          urlInput.value = text.trim();
-          onInputChange();
-          showToast('Link detected', 'Tap GRAB to download.', 'info');
+        if (activeJobs.has(jobId)) activeJobs.delete(jobId);
+        renderJobCards();
+        updateQueueBadge();
+        if (err.name === 'AbortError') {
+          showToast('Cancelled', 'Download stopped.', 'info');
+        } else {
+          onDownloadError(err.message || 'Stream error', url, formatId);
         }
-      } catch (e) {}
+      }
+    }
+
+    function onJobComplete(jobId, title, destination) {
+      activeJobs.delete(jobId);
+      completedCount++;
+      renderJobCards();
+      renderQueueTab();
+      updateQueueBadge();
+      showToast('Saved ✓', title, 'success');
+      downloadsHistory.unshift({
+        id: Date.now().toString(),
+        title: title,
+        destination: destination,
+        date: new Date().toLocaleDateString(),
+        url: currentInspectedUrl || document.getElementById('inputManualUrl').value.trim()
+      });
+      saveHistory();
+      refreshVault();
+      setTimeout(() => { if (activeJobs.size === 0) document.getElementById('activeDownloadsWrap')?.classList.add('hidden'); }, 1200);
+    }
+
+    function onDownloadError(errStr, url, formatId) {
+      currentRawError = errStr;
+      let friendly = "The media stream could not be downloaded. The video may be private, restricted, or blocked.";
+      const lower = (errStr || "").toLowerCase();
+
+      if (lower.includes("private") || lower.includes("login") || lower.includes("account")) {
+        friendly = "This video requires account access or is private.";
+      } else if (lower.includes("timeout") || lower.includes("network")) {
+        friendly = "Connection timed out. Check your internet connection.";
+      } else if (lower.includes("unsupported") || lower.includes("format")) {
+        friendly = "This format is not available for this link.";
+      }
+      showErrorModal('Download stopped', friendly, errStr);
+    }
+
+    function renderJobCards() {
+      const wrap = document.getElementById('activeDownloadsWrap');
+      const container = document.getElementById('activeDownloads');
+      if (!wrap || !container) return;
+      if (activeJobs.size === 0) {
+        wrap.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+      }
+      wrap.classList.remove('hidden');
+      container.innerHTML = [...activeJobs.entries()].map(([id, job]) => `
+        <div class="card ${job.done ? '' : 'card-accent'} p-4 space-y-2.5 fade-in" ${job.done ? 'style="border-color:rgba(52,211,153,.4)"' : ''}>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              ${job.done
+                ? '<span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 pop" style="background:rgba(52,211,153,.2);color:var(--ok)">✓</span>'
+                : '<span class="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style="background:var(--accent)"></span>'}
+              <p class="text-[12px] font-extrabold text-white truncate">${escapeHtml(job.label)} ${job.done ? '<span style="color:var(--ok)">Saved ✓</span>' : ''}</p>
+            </div>
+            <span class="text-[12px] font-mono font-bold ${job.done ? '' : 'text-cyan-300'} flex-shrink-0" ${job.done ? 'style="color:var(--ok)"' : ''}>${Math.round(job.percent)}%</span>
+          </div>
+          <div class="bar ${job.done ? '' : 'live'}"><div style="width:${Math.max(2, job.percent)}%"></div></div>
+          <div class="flex items-center justify-between text-[10px] font-mono" style="color:var(--muted)">
+            <span>${escapeHtml(job.size || job.status)}</span>
+            <div class="flex items-center gap-3">
+              ${job.speed ? `<span class="text-emerald-300 font-bold">${escapeHtml(job.speed)}</span>` : ''}
+              ${job.done ? '' : `<button onclick="cancelOneDownload('${id}')" class="font-sans font-bold" style="color:var(--bad)">✕</button>`}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function cancelOneDownload(jobId) {
+      const job = activeJobs.get(jobId);
+      if (job?.controller) job.controller.abort();
+      activeJobs.delete(jobId);
+      renderJobCards();
+      updateQueueBadge();
+      if (job) showToast('Cancelled', job.label, 'info');
+    }
+
+    function cancelAllDownloads() {
+      for (const [id, job] of activeJobs.entries()) {
+        if (job?.controller) job.controller.abort();
+      }
+      activeJobs.clear();
+      renderJobCards();
+      updateQueueBadge();
+      showToast('All cancelled', 'Every active download stopped.', 'info');
+    }
+
+    function updateQueueBadge() {
+      const badge = document.getElementById('queueBadge');
+      if (badge) {
+        if (activeJobs.size > 0) badge.classList.remove('hidden');
+        else badge.classList.add('hidden');
+      }
+      const statActive = document.getElementById('statActive');
+      if (statActive) statActive.innerText = String(activeJobs.size);
+      const statDone = document.getElementById('statDone');
+      if (statDone) statDone.innerText = String(completedCount);
+      const statSize = document.getElementById('statSize');
+      if (statSize) statSize.innerText = String(Math.round(grabbedBytes / (1024 * 1024)));
+    }
+
+    // ================= Queue Tab =================
+    function renderQueueTab() {
+      const activeC = document.getElementById('queueActiveContainer');
+      const histC = document.getElementById('queueListContainer');
+      if (activeC) {
+        activeC.innerHTML = activeJobs.size === 0 ? '' : `
+          <h4 class="text-[12px] font-extrabold text-white px-1">Downloading now</h4>
+          ${[...activeJobs.values()].map(j => `
+            <div class="card card-accent p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] font-bold text-white truncate">${escapeHtml(j.label)}</span>
+                <span class="text-[11px] font-mono font-bold text-cyan-300">${Math.round(j.percent)}%</span>
+              </div>
+              <div class="bar live"><div style="width:${Math.max(2, j.percent)}%"></div></div>
+            </div>
+          `).join('')}
+        `;
+      }
+      if (!histC) return;
+      if (downloadsHistory.length === 0) {
+        histC.innerHTML = `
+          <div class="card p-8 text-center fade-in">
+            <p class="text-[12px] font-bold text-white">No history yet</p>
+            <p class="text-[10px] mt-1" style="color:var(--muted)">Downloaded media will appear here.</p>
+          </div>
+        `;
+        return;
+      }
+      histC.innerHTML = downloadsHistory.map(item => `
+        <div class="card p-3.5 flex items-center justify-between gap-3 fade-in">
+          <div class="min-w-0 flex-1">
+            <p class="text-[12px] font-bold text-white truncate">${escapeHtml(item.title)}</p>
+            <p class="text-[10px] font-mono mt-0.5" style="color:var(--muted)">${escapeHtml(item.destination)} · ${escapeHtml(item.date)}</p>
+          </div>
+          <span class="text-[9px] font-extrabold font-mono px-2 py-1 rounded-lg flex-shrink-0" style="color:var(--ok); background:rgba(52,211,153,.1)">SAVED</span>
+        </div>
+      `).join('');
+    }
+
+    function clearCompletedHistory() {
+      downloadsHistory = [];
+      completedCount = 0;
+      grabbedBytes = 0;
+      saveHistory();
+      renderQueueTab();
+      refreshVault();
+      showToast('History cleared', 'All records removed.', 'info');
+    }
+
+    // ================= Vault =================
+    function setVaultFilter(filter) {
+      vaultFilter = filter;
+      renderVaultGrid();
+    }
+    function refreshVault() {
+      renderVaultGrid();
+    }
+    function renderVaultGrid() {
+      const grid = document.getElementById('vaultMediaGrid');
+      if (!grid) return;
+      ['vaultChipAll', 'vaultChipVideo', 'vaultChipAudio'].forEach(id => document.getElementById(id)?.classList.remove('on'));
+      document.getElementById({ all: 'vaultChipAll', video: 'vaultChipVideo', audio: 'vaultChipAudio' }[vaultFilter])?.classList.add('on');
+
+      let items = downloadsHistory;
+      if (vaultFilter === 'video') items = items.filter(i => !i.title.toLowerCase().endsWith('.mp3') && !i.title.toLowerCase().endsWith('.m4a'));
+      if (vaultFilter === 'audio') items = items.filter(i => i.title.toLowerCase().endsWith('.mp3') || i.title.toLowerCase().endsWith('.m4a'));
+
+      if (items.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-2 card p-10 text-center fade-in">
+            <div class="text-3xl mb-2">🎬</div>
+            <p class="text-[12px] font-bold text-white">Nothing here yet</p>
+            <p class="text-[11px] mt-1" style="color:var(--muted)">Grabbed videos land in the Vault automatically.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = items.map((item, idx) => `
+        <div class="card overflow-hidden fade-in">
+          <div class="aspect-square bg-black/50 relative flex items-center justify-center overflow-hidden">
+            <div class="text-center">
+              <div class="text-3xl mb-1">${item.title.toLowerCase().includes('.m') && (item.title.endsWith('.mp3') || item.title.endsWith('.m4a')) ? '🎵' : '🎬'}</div>
+              <p class="text-[8px] font-mono" style="color:var(--muted)">SAVED</p>
+            </div>
+            <div class="absolute inset-x-0 bottom-0 h-10" style="background:linear-gradient(to top, rgba(0,0,0,.65), transparent)"></div>
+          </div>
+          <div class="p-3 space-y-1">
+            <h4 class="text-[11px] font-bold text-white truncate" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h4>
+            <p class="text-[9px] font-mono truncate" style="color:var(--muted)">${escapeHtml(item.date)}</p>
+            <div class="flex gap-1.5 pt-1.5">
+              <button onclick="removeVaultItem(${idx})" class="btn w-full py-1.5 text-[10px] font-bold" style="color:var(--bad)">Remove</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function removeVaultItem(idx) {
+      downloadsHistory.splice(idx, 1);
+      saveHistory();
+      renderVaultGrid();
+      renderQueueTab();
+      showToast('Removed', 'Item removed from Vault session.', 'info');
+    }
+
+    // ================= Error sheet =================
+    function showErrorModal(title, message, rawDetail) {
+      document.getElementById('errorModalTitle').innerText = title;
+      document.getElementById('errorModalMessage').innerText = message;
+      document.getElementById('errorModalDetails').innerText = rawDetail || message;
+      document.getElementById('errorTechnicalDetailsBox').classList.add('hidden');
+      document.getElementById('btnToggleErrorDetails').innerText = 'View details';
+      document.getElementById('errorModal')?.classList.remove('hidden');
+    }
+    function closeErrorModal() {
+      document.getElementById('errorModal')?.classList.add('hidden');
+    }
+    function toggleErrorDetails() {
+      const box = document.getElementById('errorTechnicalDetailsBox');
+      const btn = document.getElementById('btnToggleErrorDetails');
+      if (box.classList.contains('hidden')) { box.classList.remove('hidden'); btn.innerText = 'Hide details'; }
+      else { box.classList.add('hidden'); btn.innerText = 'View details'; }
+    }
+    function retryCurrentDownload() {
+      closeErrorModal();
+      if (lastFailedUrl) initiateDownload(lastFailedUrl, lastFailedFormat);
+      else handleFastDlClick();
+    }
+
+    // ================= Theme & Settings =================
+    function applyTheme(theme) {
+      const root = document.documentElement;
+      if (theme === 'light') {
+        root.dataset.theme = 'light';
+        root.style.background = 'var(--bg)';
+      } else {
+        delete root.dataset.theme;
+        root.style.background = '';
+      }
+      const chk = document.getElementById('chkLightTheme');
+      if (chk) chk.checked = (theme === 'light');
+      try { localStorage.setItem('omni_theme', theme); } catch(e) {}
+    }
+    function initTheme() {
+      let saved = 'dark';
+      try { saved = localStorage.getItem('omni_theme') || 'dark'; } catch(e) {}
+      applyTheme(saved);
+    }
+    function openGitHubRepo() {
+      window.open(`https://github.com/${GITHUB_REPO}`, '_blank');
+    }
+
+    // ================= Utils & Storage =================
+    function extractUrl(text) {
+      if (!text) return "";
+      const match = text.match(/https?:\/\/[^\s<>\"']+/i);
+      if (!match) return "";
+      let url = match[0].replace(/[.,;:!?)\]]+$/, "");
+      try {
+        const u = new URL(url);
+        const junk = ['igsh', 'si', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'feature', 'fbclid', 'mibextid', 's', 'fs', 'share_app_id'];
+        junk.forEach(p => u.searchParams.delete(p));
+        return u.toString().replace(/\?$/, "");
+      } catch (e) {
+        return url;
+      }
+    }
+    function formatDuration(sec) {
+      if (!sec) return "0:00";
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function saveHistory() {
+      try { localStorage.setItem('downi_web_history', JSON.stringify(downloadsHistory)); } catch (e) {}
+    }
+    function loadHistory() {
+      try { downloadsHistory = JSON.parse(localStorage.getItem('downi_web_history') || '[]'); } catch (e) { downloadsHistory = []; }
+      completedCount = downloadsHistory.length;
+    }
+
+    // ================= Boot =================
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      loadHistory();
+      renderQueueTab();
+      refreshVault();
+      setTimeout(checkClipboard, 800);
     });
   </script>
 </body>
