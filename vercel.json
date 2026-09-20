@@ -3,6 +3,7 @@
   "routes": [
     { "src": "/api/info",   "dest": "/api/info.py" },
     { "src": "/api/stream", "dest": "/api/stream.py" },
+    { "handle": "filesystem" },
     { "src": "/(.*)",       "dest": "/index.html" }
   ]
 }
