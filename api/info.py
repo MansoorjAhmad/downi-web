@@ -88,18 +88,17 @@ def _get_info(url: str) -> dict:
         "skip_download": True,
         "http_headers": dict(_HEADERS),
     }
-    # Try android_vr first (best for YouTube muxed), fall back to default
-    for extractor_args in [{"youtube": {"player_client": ["android_vr"]}}, None]:
-        try:
-            o = dict(opts)
-            if extractor_args:
-                o["extractor_args"] = extractor_args
-            with YoutubeDL(o) as ydl:
-                return ydl.extract_info(url, download=False)
-        except Exception:
-            if extractor_args is None:
-                raise
-    raise RuntimeError("extraction failed")
+    with YoutubeDL(opts) as ydl:
+        return ydl.extract_info(url, download=False)
+
+
+# Honest failure for YouTube: Google's bot check blocks yt-dlp from
+# datacenter IPs, and client-spoofing extractor_args are banned
+# (READ_THIS_BEFORE_UPGRADE.md — they broke the Android app the same way).
+_YOUTUBE_MSG = (
+    "YouTube isn't supported on web yet. "
+    "Use the DOWNI Android app for YouTube downloads — it extracts on-device."
+)
 
 
 def _build_formats(info: dict) -> list:
@@ -181,9 +180,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(400, {"ok": False, "error": "Please paste a valid video link starting with https://"})
                 return
 
+            platform = _detect_platform(url)
+            if platform == "youtube":
+                self._json(502, {"ok": False, "error": _YOUTUBE_MSG})
+                return
+
             info = _get_info(url)
             formats = _build_formats(info)
-            platform = _detect_platform(url)
 
             # Best thumbnail — prefer a reasonably sized one
             thumbnail = info.get("thumbnail") or ""

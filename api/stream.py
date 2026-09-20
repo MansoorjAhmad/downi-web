@@ -80,6 +80,17 @@ _MIME = {
     "mkv": "video/x-matroska",
 }
 
+# Honest failure for YouTube — see the note in info.py. Client-spoofing
+# extractor_args are banned (READ_THIS_BEFORE_UPGRADE.md).
+_YOUTUBE_MSG = (
+    "YouTube isn't supported on web yet. "
+    "Use the DOWNI Android app for YouTube downloads — it extracts on-device."
+)
+
+
+def _is_youtube(url: str) -> bool:
+    return bool(re.search(r"youtube\.com|youtu\.be", url, re.I))
+
 
 def _sanitize_filename(name: str) -> str:
     name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", name or "video")
@@ -114,7 +125,6 @@ def _resolve(url: str, fmt_id: str):
     is_audio = fmt_id.lower() in ("audio", "mp3", "m4a")
 
     attempts = [
-        (selector, {"youtube": {"player_client": ["android_vr"]}}),
         (selector, None),
         ("b/best", None),
     ]
@@ -215,6 +225,10 @@ class Handler(BaseHTTPRequestHandler):
 
             if not url.startswith("http"):
                 self._json(400, {"ok": False, "error": "Invalid URL"})
+                return
+
+            if _is_youtube(url):
+                self._json(502, {"ok": False, "error": _YOUTUBE_MSG})
                 return
 
             cdn_url, ext, title, cdn_headers = _resolve(url, fmt_id)

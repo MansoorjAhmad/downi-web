@@ -969,7 +969,9 @@
       let friendly = "The media stream could not be downloaded. The video may be private, restricted, or blocked.";
       const lower = (errStr || "").toLowerCase();
 
-      if (lower.includes("private") || lower.includes("login") || lower.includes("account")) {
+      if (lower.includes("youtube isn't supported")) {
+        friendly = "YouTube isn't supported on web yet. Use the DOWNI Android app for YouTube downloads.";
+      } else if (lower.includes("private") || lower.includes("login") || lower.includes("account")) {
         friendly = "This video requires account access or is private.";
       } else if (lower.includes("timeout") || lower.includes("network")) {
         friendly = "Connection timed out. Check your internet connection.";
