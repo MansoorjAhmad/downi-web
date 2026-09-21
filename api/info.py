@@ -7,52 +7,13 @@ Protected by X-Downi-Web: 1 header.
 
 import json
 import re
-import threading
-import time
 import urllib.parse
 import urllib.request
-from collections import defaultdict, deque
 from http.server import BaseHTTPRequestHandler
 from yt_dlp import YoutubeDL
 
 _HDR_KEY = "X-Downi-Web"
 _HDR_VAL = "1"
-
-# --- Per-IP sliding-window rate limiter --------------------------------
-# Vercel Python functions are ephemeral, so this window is per warm
-# instance, not global. It blunts single-source hammering and scraping;
-# a shared store (e.g. Upstash Redis) or Vercel WAF is the next step if
-# distributed abuse from rotating IPs shows up.
-_RATE_LIMIT = 30       # requests per window per IP
-_RATE_WINDOW = 60.0    # seconds
-_MAX_TRACKED_IPS = 10000
-_rate_lock = threading.Lock()
-_rate_hits = defaultdict(deque)
-
-
-def _client_ip(handler) -> str:
-    for header in ("x-forwarded-for", "x-real-ip", "x-vercel-forwarded-for"):
-        value = handler.headers.get(header)
-        if value:
-            return value.split(",")[0].strip()
-    return "unknown"
-
-
-def _rate_limit_allow(handler) -> bool:
-    ip = _client_ip(handler)
-    now = time.monotonic()
-    with _rate_lock:
-        if len(_rate_hits) > _MAX_TRACKED_IPS:
-            stale = [k for k, v in _rate_hits.items() if not v or now - v[-1] > _RATE_WINDOW]
-            for k in stale:
-                del _rate_hits[k]
-        hits = _rate_hits[ip]
-        while hits and now - hits[0] > _RATE_WINDOW:
-            hits.popleft()
-        if len(hits) >= _RATE_LIMIT:
-            return False
-        hits.append(now)
-        return True
 
 _HEADERS = {
     "User-Agent": (
@@ -201,15 +162,13 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass  # silence default logging
 
-    def _json(self, code: int, data: dict, extra_headers=None):
+    def _json(self, code: int, data: dict):
         body = json.dumps(data).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", f"Content-Type, {_HDR_KEY}")
-        for key, value in (extra_headers or {}).items():
-            self.send_header(key, value)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -224,15 +183,6 @@ class Handler(BaseHTTPRequestHandler):
         # Auth check
         if self.headers.get(_HDR_KEY) != _HDR_VAL:
             self._json(403, {"ok": False, "error": "Forbidden"})
-            return
-
-        # Per-IP rate limit
-        if not _rate_limit_allow(self):
-            self._json(
-                429,
-                {"ok": False, "error": "Too many requests. Wait a minute and try again."},
-                extra_headers={"Retry-After": "60"},
-            )
             return
 
         try:
