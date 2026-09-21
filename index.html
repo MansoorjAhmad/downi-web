@@ -445,6 +445,7 @@
                 <p id="apkVersionLabel" class="text-[11px] font-mono text-cyan-300 mt-0.5">Latest APK available</p>
               </div>
             </div>
+            <button id="btnInstallPwa" onclick="promptInstall()" class="hidden btn px-4 py-2.5 text-[11px] font-extrabold text-cyan-300">Install app</button>
             <button onclick="openApkReleases()" class="btn-hero px-4 py-2.5 text-[11px] font-extrabold">Download APK</button>
           </div>
           <p class="text-[11px] leading-relaxed" style="color:var(--muted)">
@@ -494,6 +495,7 @@
             <span class="text-[12px] font-bold text-zinc-200">MansoorjAhmad</span>
           </div>
           <button onclick="openGitHubRepo()" class="btn w-full py-3 mt-2 text-[11px] font-extrabold text-cyan-300">⭐ Star DOWNI on GitHub</button>
+          <a href="/privacy" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400" style="display:block;text-align:center">Privacy — no accounts, no tracking</a>
         </div>
 
       </div>
@@ -610,7 +612,7 @@
 
   <script>
     const GITHUB_REPO = 'MansoorjAhmad/Downi';
-    const WEB_VERSION = '1.1.0';
+    const WEB_VERSION = '2.0.0';
     const API_HDR = { 'X-Downi-Web': '1', 'Content-Type': 'application/json' };
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -1396,6 +1398,67 @@
       completedCount = downloadsHistory.length;
     }
 
+    // ================= v2.0: share-target, drag & drop, install prompt =================
+    function setupShareTarget() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const shared = params.get('url') || params.get('text') || params.get('title') || '';
+        const clean = shared ? extractUrl(shared) : '';
+        if (clean) {
+          document.getElementById('inputManualUrl').value = clean;
+          handleUrlInputChanged();
+          currentInspectedUrl = clean;
+          handleInspectAndOpenModal(clean);
+          showToast('Shared link', 'Picked up from your share — pick a quality.', 'success');
+          window.history.replaceState({}, '', '/');
+        }
+      } catch (e) {}
+    }
+
+    function setupDragAndDrop() {
+      ['dragover', 'dragenter'].forEach(evt => {
+        document.addEventListener(evt, (e) => { e.preventDefault(); }, { passive: false });
+      });
+      document.addEventListener('drop', (e) => {
+        e.preventDefault();
+        try {
+          const raw = (e.dataTransfer && (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain'))) || '';
+          const clean = extractUrl(raw);
+          if (clean) {
+            document.getElementById('inputManualUrl').value = clean;
+            handleUrlInputChanged();
+            showToast('Link dropped', 'Tap Inspect or hit the vortex.', 'info');
+          }
+        } catch (err) {}
+      });
+      window.addEventListener('paste', (e) => {
+        try {
+          const text = e.clipboardData ? (e.clipboardData.getData('text') || '') : '';
+          const clean = extractUrl(text);
+          if (clean && document.activeElement !== document.getElementById('inputManualUrl')) {
+            document.getElementById('inputManualUrl').value = clean;
+            handleUrlInputChanged();
+            showToast('Link pasted', 'Tap Inspect or hit the vortex.', 'info');
+          }
+        } catch (err) {}
+      });
+    }
+
+    let deferredInstall = null;
+    function setupInstallPrompt() {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstall = e;
+        const btn = document.getElementById('btnInstallPwa');
+        if (btn) btn.classList.remove('hidden');
+      });
+    }
+    function promptInstall() {
+      if (!deferredInstall) return;
+      deferredInstall.prompt();
+      deferredInstall.userChoice.then(() => { deferredInstall = null; }).catch(() => {});
+    }
+
     // ================= Boot =================
     window.addEventListener('DOMContentLoaded', () => {
       const aboutV = document.getElementById('aboutVersion');
@@ -1406,6 +1469,9 @@
       refreshVault();
       checkEngineHealth();
       refreshApkVersionLabel();
+      setupShareTarget();
+      setupDragAndDrop();
+      setupInstallPrompt();
       setTimeout(checkClipboard, 800);
     });
   </script>
