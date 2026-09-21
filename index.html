@@ -423,7 +423,7 @@
                 <p class="text-[11px] font-mono text-cyan-300 mt-0.5">v2.6.3 APK available</p>
               </div>
             </div>
-            <button onclick="openGitHubRepo()" class="btn-hero px-4 py-2.5 text-[11px] font-extrabold">Download APK</button>
+            <button onclick="openApkReleases()" class="btn-hero px-4 py-2.5 text-[11px] font-extrabold">Download APK</button>
           </div>
           <p class="text-[11px] leading-relaxed" style="color:var(--muted)">
             Android users get native gallery integration, background share downloads, and true on-device extraction.
@@ -539,6 +539,26 @@
         <span id="btnConfirmDownloadText">Download</span>
       </button>
       <button onclick="closeInspector()" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400">Cancel</button>
+    </div>
+  </div>
+
+  <!-- iOS SAVE SHEET -->
+  <div id="iosSaveModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-md" onclick="closeIosSave()"></div>
+    <div class="absolute inset-x-0 bottom-0 sheet p-5 pb-7 max-w-xl mx-auto">
+      <div class="grabber"></div>
+      <div class="flex items-center gap-3 mt-3 mb-4">
+        <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3)">📲</div>
+        <div class="min-w-0">
+          <h3 class="text-[14px] font-extrabold text-white">Ready to save</h3>
+          <p id="iosSaveName" class="text-[10px] font-mono" style="color:var(--muted)">video.mp4</p>
+        </div>
+      </div>
+      <p class="text-[12px] leading-relaxed text-zinc-300">
+        The video opens in a new tab. Tap the <b>Share</b> icon → <b>Save to Files</b> or <b>Save Video</b> to keep it on your iPhone.
+      </p>
+      <button id="btnIosOpenCdn" onclick="openIosCdn()" class="btn-hero w-full py-4 mt-4 text-[13px] font-extrabold">OPEN &amp; SAVE VIDEO</button>
+      <button onclick="closeIosSave()" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400">Close</button>
     </div>
   </div>
 
@@ -885,8 +905,10 @@
           if (!data.ok) throw new Error(data.error || 'Failed to resolve iOS link');
           job.percent = 100;
           job.done = true;
-          onJobComplete(jobId, data.filename || 'Video', 'Browser tab');
-          window.open(data.cdnUrl, '_blank');
+          onJobComplete(jobId, data.filename || 'Video', 'Browser tab', url, formatId);
+          // Open from the save sheet's button, not here: Safari blocks
+          // window.open in async callbacks, but allows it on a real tap.
+          openIosSave(data.cdnUrl, data.filename);
           return;
         }
 
@@ -932,7 +954,7 @@
         job.percent = 100;
         job.done = true;
         if (total) grabbedBytes += total;
-        onJobComplete(jobId, filename, 'Downloads folder');
+        onJobComplete(jobId, filename, 'Downloads folder', url, formatId);
 
       } catch (err) {
         if (activeJobs.has(jobId)) activeJobs.delete(jobId);
@@ -946,7 +968,7 @@
       }
     }
 
-    function onJobComplete(jobId, title, destination) {
+    function onJobComplete(jobId, title, destination, url, formatId) {
       activeJobs.delete(jobId);
       completedCount++;
       renderJobCards();
@@ -958,7 +980,8 @@
         title: title,
         destination: destination,
         date: new Date().toLocaleDateString(),
-        url: currentInspectedUrl || document.getElementById('inputManualUrl').value.trim()
+        url: url || currentInspectedUrl || document.getElementById('inputManualUrl').value.trim(),
+        formatId: formatId || 'best'
       });
       saveHistory();
       refreshVault();
@@ -1139,7 +1162,8 @@
             <h4 class="text-[11px] font-bold text-white truncate" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h4>
             <p class="text-[9px] font-mono truncate" style="color:var(--muted)">${escapeHtml(item.date)}</p>
             <div class="flex gap-1.5 pt-1.5">
-              <button onclick="removeVaultItem(${idx})" class="btn w-full py-1.5 text-[10px] font-bold" style="color:var(--bad)">Remove</button>
+              ${item.url ? `<button onclick="redownloadVaultItem(${idx})" class="btn flex-1 py-1.5 text-[10px] font-bold text-cyan-300">↻ Again</button>` : ''}
+              <button onclick="removeVaultItem(${idx})" class="btn ${item.url ? 'flex-1' : 'w-full'} py-1.5 text-[10px] font-bold" style="color:var(--bad)">Remove</button>
             </div>
           </div>
         </div>
@@ -1152,6 +1176,30 @@
       renderVaultGrid();
       renderQueueTab();
       showToast('Removed', 'Item removed from Vault session.', 'info');
+    }
+    function redownloadVaultItem(idx) {
+      const item = downloadsHistory[idx];
+      if (!item?.url) return;
+      switchTab('grab');
+      initiateDownload(item.url, item.formatId || 'best');
+    }
+
+    // ================= iOS save sheet =================
+    let pendingIosUrl = '';
+    function openIosSave(cdnUrl, filename) {
+      pendingIosUrl = cdnUrl;
+      const name = document.getElementById('iosSaveName');
+      if (name) name.innerText = filename || 'video';
+      document.getElementById('iosSaveModal')?.classList.remove('hidden');
+    }
+    function closeIosSave() {
+      document.getElementById('iosSaveModal')?.classList.add('hidden');
+    }
+    function openIosCdn() {
+      if (!pendingIosUrl) return;
+      const w = window.open(pendingIosUrl, '_blank');
+      if (!w) location.href = pendingIosUrl;  // popup still blocked → navigate
+      closeIosSave();
     }
 
     // ================= Error sheet =================
@@ -1200,6 +1248,29 @@
     function openGitHubRepo() {
       window.open(`https://github.com/${GITHUB_REPO}`, '_blank');
     }
+    function openApkReleases() {
+      window.open(`https://github.com/${GITHUB_REPO}/releases/latest`, '_blank');
+    }
+    async function checkEngineHealth() {
+      const badge = document.getElementById('engineHealthBadge');
+      const dot = document.getElementById('engineDot');
+      const setBadge = (text, color, border) => {
+        if (!badge) return;
+        badge.innerText = text;
+        badge.style.color = color;
+        badge.style.borderColor = border;
+      };
+      try {
+        const res = await fetch('/api/info', { headers: { 'X-Downi-Web': '1' } });
+        const data = await res.json();
+        if (!data.ok) throw new Error('unhealthy');
+        setBadge('ONLINE', 'var(--ok)', 'rgba(52,211,153,.3)');
+        if (dot) dot.style.background = 'var(--ok)';
+      } catch (e) {
+        setBadge('OFFLINE', 'var(--bad)', 'rgba(251,113,133,.3)');
+        if (dot) dot.style.background = 'var(--bad)';
+      }
+    }
 
     // ================= Utils & Storage =================
     function extractUrl(text) {
@@ -1241,6 +1312,7 @@
       loadHistory();
       renderQueueTab();
       refreshVault();
+      checkEngineHealth();
       setTimeout(checkClipboard, 800);
     });
   </script>

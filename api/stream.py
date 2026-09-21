@@ -18,6 +18,10 @@ _HDR_KEY = "X-Downi-Web"
 _HDR_VAL = "1"
 _CHUNK = 65536  # 64 KB
 
+# Serverless responses are buffered with hard size/duration limits — huge
+# files would die mid-transfer. Fail honestly instead.
+_MAX_PROXY_BYTES = 300 * 1024 * 1024
+
 _YDL_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -284,6 +288,13 @@ class Handler(BaseHTTPRequestHandler):
                 file_size = resp.headers.get("Content-Length", "")
                 content_range = resp.headers.get("Content-Range", "")
 
+                if file_size and int(file_size) > _MAX_PROXY_BYTES:
+                    self._json(413, {
+                        "ok": False,
+                        "error": "This video is too large to download through the web app. Try a shorter clip, or use the DOWNI Android app.",
+                    })
+                    return
+
                 response_started = True
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
@@ -299,9 +310,16 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_header("Content-Range", content_range)
                 self.end_headers()
 
+                written = 0
                 while True:
                     chunk = resp.read(_CHUNK)
                     if not chunk:
+                        break
+                    written += len(chunk)
+                    if written > _MAX_PROXY_BYTES:
+                        # No length was advertised (or it lied) — cut the
+                        # connection rather than buffering forever.
+                        self.close_connection = True
                         break
                     try:
                         self.wfile.write(chunk)
