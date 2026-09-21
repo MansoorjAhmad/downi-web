@@ -134,6 +134,17 @@ def _sanitize_filename(name: str) -> str:
     return name[:80].strip() or "video"
 
 
+# Plain media file links (.mp4/.m4a/...) are proxied directly — yt-dlp's
+# generic extractor reports no codecs for them and _pick_muxed rejects them.
+_DIRECT_MEDIA_RE = re.compile(
+    r"\.(mp4|m4v|mov|webm|mkv|m4a|mp3|ogg|wav)(\?|$)", re.I
+)
+
+
+def _is_direct_media(url: str) -> bool:
+    return bool(_DIRECT_MEDIA_RE.search(url.split("#")[0]))
+
+
 def _pick_muxed(info: dict):
     """Return (url, ext, http_headers) for the best muxed stream."""
     url = info.get("url")
@@ -151,6 +162,17 @@ def _pick_muxed(info: dict):
     ]
     if muxed:
         best = max(muxed, key=lambda f: (f.get("height") or 0, f.get("tbr") or 0))
+        return best["url"], best.get("ext") or "mp4", best.get("http_headers") or {}
+
+    # Tier 2: datacenter IPs sometimes make Instagram return DASH streams
+    # (video and audio separate) with no muxed variant at all. A video-only
+    # file beats a hard failure — no ffmpeg is available server-side to merge.
+    video_only = [
+        f for f in (info.get("formats") or [])
+        if f.get("url") and f.get("vcodec") not in (None, "none")
+    ]
+    if video_only:
+        best = max(video_only, key=lambda f: (f.get("height") or 0, f.get("tbr") or 0))
         return best["url"], best.get("ext") or "mp4", best.get("http_headers") or {}
 
     return None, None, {}
@@ -258,7 +280,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(502, {"ok": False, "error": _YOUTUBE_MSG})
                 return
 
-            if _is_tiktok(url):
+            if _is_direct_media(url):
+                # Plain media link: proxy it as-is, no extraction needed.
+                path = url.split("?")[0].rstrip("/")
+                ext = path.rsplit(".", 1)[-1].lower()
+                title = _sanitize_filename(path.rsplit("/", 1)[-1].rsplit(".", 1)[0]) or "video"
+                cdn_url, ext, title, cdn_headers = url, ext, title, {}
+            elif _is_tiktok(url):
                 try:
                     cdn_url, ext, title, cdn_headers = _tiktok_resolve(url, fmt_id)
                 except Exception:

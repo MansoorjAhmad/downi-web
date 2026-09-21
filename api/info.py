@@ -41,6 +41,34 @@ def _detect_platform(url: str) -> str:
     return "web"
 
 
+# Plain media file links are answered without yt-dlp (the generic extractor
+# reports no codec info for them and downstream muxed-picking rejects it).
+_DIRECT_MEDIA_RE = re.compile(
+    r"\.(mp4|m4v|mov|webm|mkv|m4a|mp3|ogg|wav)(\?|$)", re.I
+)
+_AUDIO_EXT = {"m4a", "mp3", "ogg", "wav"}
+
+
+def _direct_media_info(url: str) -> dict:
+    path = url.split("?")[0].rstrip("/")
+    ext = path.rsplit(".", 1)[-1].lower()
+    raw_name = path.rsplit("/", 1)[-1].rsplit(".", 1)[0] or "video"
+    is_audio = ext in _AUDIO_EXT
+    return {
+        "ok": True,
+        "title": re.sub(r"[^\x20-\x7E]", " ", raw_name).strip() or "video",
+        "thumbnail": "",
+        "duration": 0,
+        "uploader": "",
+        "platform": "direct",
+        "formats": [
+            {"id": "audio", "label": "Audio File", "badge": ext.upper(), "ext": ext}
+            if is_audio else
+            {"id": "best", "label": "Direct Video File", "badge": ext.upper(), "ext": ext}
+        ],
+    }
+
+
 def _get_info(url: str) -> dict:
     opts = {
         "quiet": True,
@@ -198,6 +226,10 @@ class Handler(BaseHTTPRequestHandler):
             platform = _detect_platform(url)
             if platform == "youtube":
                 self._json(502, {"ok": False, "error": _YOUTUBE_MSG})
+                return
+
+            if _DIRECT_MEDIA_RE.search(url.split("#")[0]):
+                self._json(200, _direct_media_info(url))
                 return
 
             if platform == "tiktok":
