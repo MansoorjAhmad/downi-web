@@ -461,7 +461,7 @@
           <p class="text-[12px] font-extrabold text-white px-1 pb-2">About</p>
           <div class="flex items-center justify-between py-2.5 border-t border-white/5">
             <span class="text-[11px]" style="color:var(--muted)">App</span>
-            <span class="text-[12px] font-bold text-zinc-200">DOWNI Web <span id="aboutVersion" class="font-mono text-[10px] text-zinc-400">v2.6.3</span></span>
+            <span class="text-[12px] font-bold text-zinc-200">DOWNI Web <span id="aboutVersion" class="font-mono text-[10px] text-zinc-400"></span></span>
           </div>
           <div class="flex items-center justify-between py-2.5 border-t border-white/5">
             <span class="text-[11px]" style="color:var(--muted)">Engine</span>
@@ -568,6 +568,7 @@
 
   <script>
     const GITHUB_REPO = 'MansoorjAhmad/Downi';
+    const WEB_VERSION = '1.0.0';
     const API_HDR = { 'X-Downi-Web': '1', 'Content-Type': 'application/json' };
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -1234,6 +1235,8 @@
 
     // ================= Boot =================
     window.addEventListener('DOMContentLoaded', () => {
+      const aboutV = document.getElementById('aboutVersion');
+      if (aboutV) aboutV.innerText = 'v' + WEB_VERSION;
       initTheme();
       loadHistory();
       renderQueueTab();
