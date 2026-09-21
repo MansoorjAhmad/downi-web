@@ -1,26 +1,37 @@
-# DOWNI Web ⚡
+# DOWNI Web v1.1 ⚡
 
 > **Grab any video. One tap. Zero clutter.**  
-> Official Web App for iOS, Android, and Desktop browsers.
+> Official web app for iOS, Android, and desktop browsers.
 
-Built with clean vanilla web technologies, PWA support, and Python serverless endpoints powered by `yt-dlp`.
+Live: **https://getdowni.vercel.app**
+
+Vanilla JS + Tailwind (fully local — no CDN), an installable PWA with an offline app shell, and Python serverless endpoints powered by `yt-dlp`.
 
 ---
 
 ## 🚀 Features
 
-- **Multi-Platform Support**: YouTube, Instagram, TikTok, Twitter/X, Facebook, and generic direct URLs.
-- **Works on iOS Safari**: Tailored download and save options designed specifically for iPhone and iPad workflows.
-- **Quality Picker**: 1080p, 720p, 480p, Best, and Audio-only (MP3/M4A).
-- **Fast & Modern Design**: Frosted glass dark theme matching the DOWNI Android native app.
-- **API Protection**: Requests validated with private security headers to prevent external scrapers and abuse.
+- **Multi-platform**: TikTok (HD, no watermark), Instagram, Facebook, X, Reddit, Pinterest + any public **direct media link** (HTTPS).
+- **YouTube**: intentionally not available on web — YouTube blocks datacenter-IP extraction and client spoofing is permanently banned (see `READ_THIS_BEFORE_UPGRADE.md` in the Android repo). The free **DOWNI Android app** handles YouTube fully on-device.
+- **Quality picker**: up to 1080p where a platform serves a muxed stream, plus 720p / 480p / audio-only.
+- **Big-file safe**: streams straight to disk via the File System Access API on Chromium (no RAM buffering); blob fallback on Safari/Firefox; a dedicated save sheet on iOS.
+- **Offline-ready PWA**: installable, light/dark theme (system default), local icons/fonts/runtime cached by a service worker.
+- **Honest limits**: max proxied file 300 MB; Vercel function limits apply (300 s max duration).
 
----
+## 🛡️ Security & abuse limits
+
+- Platform allow-list + HTTPS-only direct links + private-network (SSRF) block on both endpoints — this protects the server from abuse targets, it never limits your users.
+- The `X-Downi-Web` header is a *soft* anti-scrape signal, not a secret (it is visible in the page source).
+- No rate limiting, by design — every download is welcome.
 
 ## 🛠️ Deploy to Vercel
 
 1. Push this repository to GitHub (`MansoorjAhmad/downi-web`).
-2. Go to [Vercel Dashboard](https://vercel.com/new).
-3. Import the repository.
-4. Set Domain in Settings → Domains to `getdowni.vercel.app`.
-5. Deploy!
+2. Go to [Vercel Dashboard](https://vercel.com/new) → Import the repository.
+3. Set the domain in Settings → Domains to `getdowni.vercel.app`.
+4. Deploy — `/api/info` and `/api/stream` become Python functions automatically.
+
+## 🔢 Versioning
+
+The web app has its own semver line (currently **v1.1.0**), decoupled from the Android app's versions.
+

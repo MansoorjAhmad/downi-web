@@ -1,5 +1,9 @@
 {
   "version": 2,
+  "functions": {
+    "api/info.py": { "maxDuration": 60 },
+    "api/stream.py": { "maxDuration": 300 }
+  },
   "routes": [
     { "src": "/api/info",   "dest": "/api/info.py" },
     { "src": "/api/stream", "dest": "/api/stream.py" },

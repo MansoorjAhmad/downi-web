@@ -6,17 +6,22 @@
   <title>DOWNI — Grab Any Video</title>
   <meta name="description" content="Grab any video. One tap. Zero clutter. Works on iPhone, Android, and Desktop browsers.">
   <meta name="theme-color" content="#060A13">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://getdowni.vercel.app/">
   <meta property="og:title" content="DOWNI — Grab Any Video">
-  <meta property="og:description" content="Grab any video. One tap. Zero clutter.">
-  <meta property="og:image" content="assets/logo.png">
+  <meta property="og:description" content="Grab any video. One tap. Zero clutter. Works on iPhone, Android, and Desktop browsers.">
+  <meta property="og:image" content="https://getdowni.vercel.app/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DOWNI — Grab Any Video">
+  <meta name="twitter:description" content="Grab any video. One tap. Zero clutter.">
+  <meta name="twitter:image" content="https://getdowni.vercel.app/og.png">
+  <link rel="canonical" href="https://getdowni.vercel.app/">
   <link rel="manifest" href="/manifest.json">
-  <link rel="icon" type="image/png" href="/assets/icon.png">
-  <link rel="apple-touch-icon" href="/assets/icon.png">
-  <!-- Tailwind CSS CDN for instant, bulletproof web styling -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <!-- Local Tailwind runtime + local fonts — the app shell works fully offline -->
+  <script src="/assets/vendor/tailwind.js"></script>
+  <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); }); }</script>
   <!-- Apply saved theme before first paint to avoid flash; default to system preference -->
   <script>try{var t=localStorage.getItem('omni_theme');if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
   <style>
@@ -346,7 +351,7 @@
           </button>
 
           <div class="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">YouTube</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400" title="YouTube blocks server-side downloads — use the free DOWNI Android app">YouTube → app</span>
             <span class="chip on px-2.5 py-1 text-[9px] font-bold">TikTok · HD</span>
             <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">Instagram</span>
             <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">Facebook</span>
@@ -437,7 +442,7 @@
               <div class="w-10 h-10 rounded-2xl bg-cyan-400/12 border border-cyan-300/20 flex items-center justify-center text-base">🤖</div>
               <div>
                 <p class="text-[12px] font-extrabold text-white">DOWNI for Android</p>
-                <p class="text-[11px] font-mono text-cyan-300 mt-0.5">v2.6.3 APK available</p>
+                <p id="apkVersionLabel" class="text-[11px] font-mono text-cyan-300 mt-0.5">Latest APK available</p>
               </div>
             </div>
             <button onclick="openApkReleases()" class="btn-hero px-4 py-2.5 text-[11px] font-extrabold">Download APK</button>
@@ -605,7 +610,7 @@
 
   <script>
     const GITHUB_REPO = 'MansoorjAhmad/Downi';
-    const WEB_VERSION = '1.0.0';
+    const WEB_VERSION = '1.1.0';
     const API_HDR = { 'X-Downi-Web': '1', 'Content-Type': 'application/json' };
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -903,6 +908,30 @@
       updateQueueBadge();
       showToast('Grab started', 'DOWNI is processing video stream.', 'success');
 
+      // Chromium desktop/Android: open the save picker FIRST (inside the tap's
+      // user-activation window) so the response can stream straight to disk
+      // instead of buffering the whole video in RAM.
+      let diskHandle = null;
+      if (!isIOS && 'showSaveFilePicker' in window) {
+        try {
+          const titleGuess = (document.getElementById('inspectorTitle')?.innerText || '').trim();
+          const base = (titleGuess && titleGuess !== 'Scanning qualities…' && titleGuess !== 'Video title')
+            ? titleGuess.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, ' ').slice(0, 60).trim()
+            : 'downi-video';
+          diskHandle = await window.showSaveFilePicker({
+            suggestedName: (base || 'downi-video') + (formatId === 'audio' ? '.mp3' : '.mp4')
+          });
+        } catch (e) {
+          if (e && e.name === 'AbortError') {
+            activeJobs.delete(jobId);
+            renderJobCards();
+            updateQueueBadge();
+            return;
+          }
+          diskHandle = null; // activation expired / unsupported → blob fallback below
+        }
+      }
+
       try {
         const payload = { url, formatId, ios: isIOS };
         const res = await fetch('/api/stream', {
@@ -914,6 +943,7 @@
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
+          if (diskHandle) { try { await diskHandle.remove(); } catch (e) {} }
           throw new Error(errData.error || `Server responded with ${res.status}`);
         }
 
@@ -933,40 +963,70 @@
         const contentLength = res.headers.get('Content-Length');
         const total = contentLength ? parseInt(contentLength, 10) : 0;
         let loaded = 0;
-
-        const reader = res.body.getReader();
-        const chunks = [];
-
-        job.status = 'Downloading…';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          loaded += value.length;
-          if (total) {
-            job.percent = Math.min(99, Math.round((loaded / total) * 100));
-            job.size = `${(loaded / (1024 * 1024)).toFixed(1)} MB / ${(total / (1024 * 1024)).toFixed(1)} MB`;
-          } else {
-            job.percent = Math.min(95, job.percent + 4);
-            job.size = `${(loaded / (1024 * 1024)).toFixed(1)} MB`;
-          }
-          renderJobCards();
-        }
+        let lastRender = 0;
 
         const disp = res.headers.get('Content-Disposition') || '';
         let filename = 'download.mp4';
         const match = disp.match(/filename="?([^"]+)"?/);
         if (match && match[1]) filename = match[1];
+        if (diskHandle) filename = diskHandle.name;
 
-        const blob = new Blob(chunks);
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        const trackProgress = () => {
+          const now = Date.now();
+          if (now - lastRender < 250) return;
+          lastRender = now;
+          if (total) {
+            job.percent = Math.min(99, Math.round((loaded / total) * 100));
+            job.size = `${(loaded / (1024 * 1024)).toFixed(1)} MB / ${(total / (1024 * 1024)).toFixed(1)} MB`;
+          } else {
+            job.percent = Math.min(95, job.percent + 2);
+            job.size = `${(loaded / (1024 * 1024)).toFixed(1)} MB`;
+          }
+          renderJobCards();
+        };
+
+        job.status = 'Downloading…';
+
+        if (diskHandle) {
+          // Stream straight to disk — no in-memory buffering, big files are safe.
+          const writable = await diskHandle.createWritable();
+          const reader = res.body.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              await writable.write(value);
+              loaded += value.length;
+              trackProgress();
+            }
+            await writable.close();
+          } catch (streamErr) {
+            try { await writable.abort(); } catch (e) {}
+            try { await diskHandle.remove(); } catch (e) {}
+            throw streamErr;
+          }
+        } else {
+          // Fallback: buffer in memory, then save (Safari/Firefox).
+          const reader = res.body.getReader();
+          const chunks = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            loaded += value.length;
+            trackProgress();
+          }
+
+          const blob = new Blob(chunks);
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        }
 
         job.percent = 100;
         job.done = true;
@@ -1273,6 +1333,16 @@
     function openApkReleases() {
       window.open(`https://github.com/${GITHUB_REPO}/releases/latest`, '_blank');
     }
+    async function refreshApkVersionLabel() {
+      try {
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { headers: { 'Accept': 'application/vnd.github+json' } });
+        if (!res.ok) return;
+        const data = await res.json();
+        const tag = (data.tag_name || '').trim();
+        const el = document.getElementById('apkVersionLabel');
+        if (tag && el) el.innerText = tag + ' APK available';
+      } catch (e) {}
+    }
     async function checkEngineHealth() {
       const badge = document.getElementById('engineHealthBadge');
       const dot = document.getElementById('engineDot');
@@ -1335,6 +1405,7 @@
       renderQueueTab();
       refreshVault();
       checkEngineHealth();
+      refreshApkVersionLabel();
       setTimeout(checkClipboard, 800);
     });
   </script>

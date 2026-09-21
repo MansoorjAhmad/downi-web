@@ -7,6 +7,7 @@ Protected by X-Downi-Web: 1 header.
 
 import json
 import re
+import ipaddress
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler
@@ -47,6 +48,53 @@ _DIRECT_MEDIA_RE = re.compile(
     r"\.(mp4|m4v|mov|webm|mkv|m4a|mp3|ogg|wav)(\?|$)", re.I
 )
 _AUDIO_EXT = {"m4a", "mp3", "ogg", "wav"}
+
+
+# --- Abuse guard: allow-list supported platforms, block private networks ---
+# The previous build accepted ANY http(s) URL, which made this endpoint a free
+# open proxy. Platform URLs are allow-listed; direct media files stay supported
+# from any public HTTPS host, but loopback/private/link-local targets are
+# refused (SSRF guard).
+
+_PLATFORM_HOSTS = (
+    "youtube.com", "youtu.be",
+    "instagram.com",
+    "tiktok.com",
+    "twitter.com", "x.com",
+    "facebook.com", "fb.watch", "fb.gg",
+    "reddit.com", "v.redd.it",
+    "pinterest.com", "pin.it",
+)
+
+
+def _hostname(url: str) -> str:
+    try:
+        return (urllib.parse.urlparse(url).hostname or "").lower()
+    except Exception:
+        return ""
+
+
+def _is_platform_host(host: str) -> bool:
+    return any(host == d or host.endswith("." + d) for d in _PLATFORM_HOSTS)
+
+
+def _is_private_host(host: str) -> bool:
+    if not host or host == "localhost" or host.endswith((".local", ".internal", ".lan")):
+        return True
+    try:
+        return not ipaddress.ip_address(host).is_global
+    except ValueError:
+        return False  # normal hostname, not an IP literal
+
+
+def _url_allowed(url: str) -> bool:
+    host = _hostname(url)
+    if _is_private_host(host):
+        return False
+    if _is_platform_host(host):
+        return True
+    # Direct media file links stay supported from any public HTTPS host.
+    return url.lower().startswith("https://") and bool(_DIRECT_MEDIA_RE.search(url.split("#")[0]))
 
 
 def _direct_media_info(url: str) -> dict:
@@ -205,7 +253,7 @@ class Handler(BaseHTTPRequestHandler):
         self._json(200, {"ok": True})
 
     def do_GET(self):
-        self._json(200, {"ok": True, "service": "downi-web-info", "version": "1.0.0"})
+        self._json(200, {"ok": True, "service": "downi-web-info", "version": "1.1.0"})
 
     def do_POST(self):
         # Auth check
@@ -221,6 +269,10 @@ class Handler(BaseHTTPRequestHandler):
             url = (data.get("url") or "").strip()
             if not url.startswith("http"):
                 self._json(400, {"ok": False, "error": "Please paste a valid video link starting with https://"})
+                return
+
+            if not _url_allowed(url):
+                self._json(400, {"ok": False, "error": "This link is not supported. Try YouTube, Instagram, TikTok, Facebook, X, Reddit, Pinterest, or a direct media link."})
                 return
 
             platform = _detect_platform(url)

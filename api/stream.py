@@ -8,6 +8,7 @@ Falls back to a JSON { cdnUrl, filename } response for iOS Safari (caller opens 
 
 import json
 import re
+import ipaddress
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -145,6 +146,51 @@ def _is_direct_media(url: str) -> bool:
     return bool(_DIRECT_MEDIA_RE.search(url.split("#")[0]))
 
 
+# --- Abuse guard: allow-list supported platforms, block private networks ---
+# This endpoint proxies arbitrary downloads, so an unrestricted `url` param
+# would turn it into an open fetch proxy. Same policy as api/info.py.
+
+_PLATFORM_HOSTS = (
+    "youtube.com", "youtu.be",
+    "instagram.com",
+    "tiktok.com",
+    "twitter.com", "x.com",
+    "facebook.com", "fb.watch", "fb.gg",
+    "reddit.com", "v.redd.it",
+    "pinterest.com", "pin.it",
+)
+
+
+def _hostname(url: str) -> str:
+    try:
+        return (urllib.parse.urlparse(url).hostname or "").lower()
+    except Exception:
+        return ""
+
+
+def _is_platform_host(host: str) -> bool:
+    return any(host == d or host.endswith("." + d) for d in _PLATFORM_HOSTS)
+
+
+def _is_private_host(host: str) -> bool:
+    if not host or host == "localhost" or host.endswith((".local", ".internal", ".lan")):
+        return True
+    try:
+        return not ipaddress.ip_address(host).is_global
+    except ValueError:
+        return False  # normal hostname, not an IP literal
+
+
+def _url_allowed(url: str) -> bool:
+    host = _hostname(url)
+    if _is_private_host(host):
+        return False
+    if _is_platform_host(host):
+        return True
+    # Direct media file links stay supported from any public HTTPS host.
+    return url.lower().startswith("https://") and _is_direct_media(url)
+
+
 def _pick_muxed(info: dict):
     """Return (url, ext, http_headers) for the best muxed stream."""
     url = info.get("url")
@@ -274,6 +320,10 @@ class Handler(BaseHTTPRequestHandler):
 
             if not url.startswith("http"):
                 self._json(400, {"ok": False, "error": "Invalid URL"})
+                return
+
+            if not _url_allowed(url):
+                self._json(400, {"ok": False, "error": "This link is not supported. Try YouTube, Instagram, TikTok, Facebook, X, Reddit, Pinterest, or a direct media link."})
                 return
 
             if _is_youtube(url):
