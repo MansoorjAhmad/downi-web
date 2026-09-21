@@ -9,6 +9,8 @@ import json
 import re
 import threading
 import time
+import urllib.parse
+import urllib.request
 from collections import defaultdict, deque
 from http.server import BaseHTTPRequestHandler
 from yt_dlp import YoutubeDL
@@ -101,6 +103,69 @@ _YOUTUBE_MSG = (
 )
 
 
+# --- TikTok direct fast-path (ported from the Android app's proven core) ---
+# downloader.py uses tikwm.com for HD no-watermark video + MP3 audio without
+# routing TikTok through yt-dlp. Same behavior here; yt-dlp stays as fallback.
+
+_TIKWM_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+
+
+def _expand_tiktok_shortlink(url: str) -> str:
+    if not re.search(r"vt\.tiktok\.com|vm\.tiktok\.com|tiktok\.com/t/", url, re.I):
+        return url
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": _TIKWM_UA})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.geturl()
+    except Exception:
+        return url
+
+
+def _tiktok_fetch(url: str) -> dict:
+    data = urllib.parse.urlencode(
+        {"url": url, "count": 12, "cursor": 0, "web": 1, "hd": 1}
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        "https://www.tikwm.com/api/",
+        data=data,
+        headers={
+            "User-Agent": _TIKWM_UA,
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Referer": "https://www.tikwm.com/",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+
+def _tiktok_info(url: str) -> dict:
+    """Metadata response in the /api/info shape, or raises on failure."""
+    data = _tiktok_fetch(_expand_tiktok_shortlink(url))
+    if data.get("code") != 0:
+        raise RuntimeError(data.get("msg") or "TikTok video not available")
+    d = data.get("data") or {}
+    cover = d.get("cover") or d.get("origin_cover") or ""
+    if cover.startswith("/"):
+        cover = urllib.parse.urljoin("https://www.tikwm.com", cover)
+    author = d.get("author") or {}
+    return {
+        "ok": True,
+        "title": d.get("title") or "TikTok Video",
+        "thumbnail": cover,
+        "duration": int(d.get("duration") or 0),
+        "uploader": author.get("nickname") or author.get("unique_id") or "TikTok Creator",
+        "platform": "tiktok",
+        "formats": [
+            {"id": "best", "label": "HD Video (No Watermark)", "badge": "HD", "ext": "mp4"},
+            {"id": "audio", "label": "Audio Track (MP3)", "badge": "MP3", "ext": "mp3"},
+        ],
+    }
+
+
 def _build_formats(info: dict) -> list:
     raw_formats = info.get("formats") or []
 
@@ -184,6 +249,13 @@ class Handler(BaseHTTPRequestHandler):
             if platform == "youtube":
                 self._json(502, {"ok": False, "error": _YOUTUBE_MSG})
                 return
+
+            if platform == "tiktok":
+                try:
+                    self._json(200, _tiktok_info(url))
+                    return
+                except Exception:
+                    pass  # fall through to yt-dlp
 
             info = _get_info(url)
             formats = _build_formats(info)

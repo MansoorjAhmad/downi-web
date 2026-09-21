@@ -10,6 +10,7 @@ import json
 import re
 import threading
 import time
+import urllib.parse
 import urllib.request
 import urllib.error
 from collections import defaultdict, deque
@@ -92,8 +93,77 @@ def _is_youtube(url: str) -> bool:
     return bool(re.search(r"youtube\.com|youtu\.be", url, re.I))
 
 
+# --- TikTok direct fast-path (ported from the Android app's proven core) ---
+# tikwm.com gives HD no-watermark MP4 + MP3 audio; yt-dlp stays as fallback.
+
+_TIKWM_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+
+
+def _is_tiktok(url: str) -> bool:
+    return "tiktok.com" in url.lower()
+
+
+def _expand_tiktok_shortlink(url: str) -> str:
+    if not re.search(r"vt\.tiktok\.com|vm\.tiktok\.com|tiktok\.com/t/", url, re.I):
+        return url
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": _TIKWM_UA})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.geturl()
+    except Exception:
+        return url
+
+
+def _tiktok_fetch(url: str) -> dict:
+    data = urllib.parse.urlencode(
+        {"url": url, "count": 12, "cursor": 0, "web": 1, "hd": 1}
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        "https://www.tikwm.com/api/",
+        data=data,
+        headers={
+            "User-Agent": _TIKWM_UA,
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Referer": "https://www.tikwm.com/",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+
+def _tiktok_resolve(url: str, fmt_id: str):
+    """Returns (cdn_url, ext, title, http_headers) via tikwm, app-core cascade."""
+    is_audio = fmt_id.lower() in ("audio", "mp3", "m4a")
+    data = _tiktok_fetch(_expand_tiktok_shortlink(url))
+    if data.get("code") != 0:
+        raise RuntimeError(data.get("msg") or "TikTok video not available")
+    item = data.get("data") or {}
+    stream_url = (
+        item.get("music") if is_audio
+        else (item.get("hdplay") or item.get("play") or item.get("wmplay"))
+    )
+    if not stream_url:
+        raise RuntimeError("No downloadable stream found in TikTok response")
+    if stream_url.startswith("/"):
+        stream_url = urllib.parse.urljoin("https://www.tikwm.com", stream_url)
+
+    title = item.get("title") or ("tiktok_" + str(item.get("id") or "video"))
+    ext = "mp3" if is_audio else "mp4"
+    # TikTok CDN requires a browser Referer — same header the Android app sends.
+    headers = {"User-Agent": _TIKWM_UA, "Referer": "https://www.tiktok.com/"}
+    return stream_url, ext, f"{_sanitize_filename(title)[:50]}-{item.get('id', 'video')}", headers
+
+
 def _sanitize_filename(name: str) -> str:
-    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", name or "video")
+    # Keep printable ASCII only: HTTP headers are latin-1, so a title with
+    # emoji/curly quotes would crash Content-Disposition otherwise.
+    name = re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "", name or "video")
+    name = re.sub(r"[^\x20-\x7E]", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
     return name[:80].strip() or "video"
 
 
@@ -214,6 +284,7 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        response_started = False
         try:
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length) if length else b"{}"
@@ -231,7 +302,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(502, {"ok": False, "error": _YOUTUBE_MSG})
                 return
 
-            cdn_url, ext, title, cdn_headers = _resolve(url, fmt_id)
+            if _is_tiktok(url):
+                try:
+                    cdn_url, ext, title, cdn_headers = _tiktok_resolve(url, fmt_id)
+                except Exception:
+                    cdn_url, ext, title, cdn_headers = _resolve(url, fmt_id)  # yt-dlp fallback
+            else:
+                cdn_url, ext, title, cdn_headers = _resolve(url, fmt_id)
+
             filename = f"{_sanitize_filename(title)}.{ext}"
             content_type = _MIME.get(ext, "application/octet-stream")
 
@@ -254,6 +332,7 @@ class Handler(BaseHTTPRequestHandler):
                 file_size = resp.headers.get("Content-Length", "")
                 content_range = resp.headers.get("Content-Range", "")
 
+                response_started = True
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
                 self.send_header(
@@ -279,6 +358,13 @@ class Handler(BaseHTTPRequestHandler):
 
         except Exception as exc:
             msg = str(exc)[:350]
+            if response_started:
+                # Headers/body already went out; a second HTTP response would
+                # corrupt the transfer. Dropping the connection is the only
+                # honest signal (the client sees a truncated download).
+                self._headers_buffer = []
+                self.close_connection = True
+                return
             self._json(502, {"ok": False, "error": msg})
 
 
