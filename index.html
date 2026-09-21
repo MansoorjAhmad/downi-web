@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Apply saved theme before first paint to avoid flash -->
-  <script>try{var t=localStorage.getItem('omni_theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
+  <!-- Apply saved theme before first paint to avoid flash; default to system preference -->
+  <script>try{var t=localStorage.getItem('omni_theme');if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
   <style>
     @font-face {
       font-family: 'Plus Jakarta Sans';
@@ -78,6 +78,23 @@
     :root[data-theme="light"] input[type="url"],
     :root[data-theme="light"] textarea,
     :root[data-theme="light"] select { background: var(--surface-2); color: #1E293B; border-color: var(--line); }
+
+    /* Light-theme coverage for surfaces that previously stayed dark */
+    :root[data-theme="light"] header { background: rgba(240,244,248,.92) !important; }
+    :root[data-theme="light"] .card { box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+    :root[data-theme="light"] .sheet { box-shadow: 0 -12px 60px rgba(15, 23, 42, .18); }
+    :root[data-theme="light"] .bar { background: rgba(15, 23, 42, .10); }
+    :root[data-theme="light"] .skel { background: linear-gradient(100deg, rgba(15,23,42,.06) 30%, rgba(15,23,42,.12) 50%, rgba(15,23,42,.06) 70%); background-size: 200% 100%; }
+    :root[data-theme="light"] .grabber { background: rgba(15, 23, 42, .18); }
+    :root[data-theme="light"] .vortex { background: radial-gradient(circle at 32% 30%, rgba(8,145,178,.10), rgba(255,255,255,.98) 65%); }
+    :root[data-theme="light"] .bg-black\/75 { background: rgba(15, 23, 42, .45) !important; }
+    :root[data-theme="light"] .bg-black\/50 { background: rgba(15, 23, 42, .12) !important; }
+    :root[data-theme="light"] .bg-white\/5,
+    :root[data-theme="light"] .bg-white\/\[0\.03\],
+    :root[data-theme="light"] .bg-white\/\[0\.06\] { background: rgba(15, 23, 42, .05) !important; }
+    :root[data-theme="light"] .border-white\/5 { border-color: rgba(15, 23, 42, .07) !important; }
+    :root[data-theme="light"] .border-white\/10 { border-color: rgba(15, 23, 42, .10) !important; }
+    :root[data-theme="light"] .border-white\/15 { border-color: rgba(15, 23, 42, .14) !important; }
 
     * {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -1241,8 +1258,13 @@
       try { localStorage.setItem('omni_theme', theme); } catch(e) {}
     }
     function initTheme() {
-      let saved = 'dark';
-      try { saved = localStorage.getItem('omni_theme') || 'dark'; } catch(e) {}
+      let saved = '';
+      try { saved = localStorage.getItem('omni_theme') || ''; } catch(e) {}
+      if (!saved) {
+        // No explicit choice yet → follow the system preference.
+        try { saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
+        catch(e) { saved = 'dark'; }
+      }
       applyTheme(saved);
     }
     function openGitHubRepo() {
