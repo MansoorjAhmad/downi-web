@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>DOWNI — Grab Any Video</title>
+  <title>DOWNI — Grab any video. One tap.</title>
   <meta name="description" content="Grab any video. One tap. Zero clutter. Works on iPhone, Android, and Desktop browsers.">
   <meta name="theme-color" content="#060A13">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://getdowni.vercel.app/">
-  <meta property="og:title" content="DOWNI — Grab Any Video">
+  <meta property="og:title" content="DOWNI — Grab any video. One tap.">
   <meta property="og:description" content="Grab any video. One tap. Zero clutter. Works on iPhone, Android, and Desktop browsers.">
   <meta property="og:image" content="https://getdowni.vercel.app/og.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="DOWNI — Grab Any Video">
+  <meta name="twitter:title" content="DOWNI — Grab any video. One tap.">
   <meta name="twitter:description" content="Grab any video. One tap. Zero clutter.">
   <meta name="twitter:image" content="https://getdowni.vercel.app/og.png">
   <link rel="canonical" href="https://getdowni.vercel.app/">
@@ -23,7 +23,7 @@
   <script src="/assets/vendor/tailwind.js"></script>
   <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); }); }</script>
   <!-- Apply saved theme before first paint to avoid flash; default to system preference -->
-  <script>try{var t=localStorage.getItem('omni_theme');if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
+  <script>try{var t=(localStorage.getItem('downi_web_theme') || localStorage.getItem('omni_theme'));if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
   <style>
     @font-face {
       font-family: 'Plus Jakarta Sans';
@@ -47,9 +47,21 @@
       --line: rgba(255, 255, 255, 0.07);
       --accent: #22D3EE;
       --accent-2: #3B82F6;
+      --accent-rgb: 34, 211, 238;
+      --accent-2-rgb: 59, 130, 246;
       --ok: #34D399;
       --bad: #FB7185;
       --muted: #8A94A7;
+    }
+
+    /* Accent-token utilities — same canon as the Android app */
+    .text-accent { color: var(--accent); }
+    .bg-accent-soft { background: rgba(var(--accent-rgb), .12); }
+    .border-accent-soft { border-color: rgba(var(--accent-rgb), .22); }
+    .qx-on { background: var(--accent); color: #04121C; }
+    input[type="checkbox"] { accent-color: var(--accent); }
+    input[type="text"]:focus, input[type="url"]:focus, textarea:focus, select:focus {
+      border-color: rgba(var(--accent-rgb), .5) !important;
     }
 
     :root[data-theme="light"] {
@@ -59,6 +71,8 @@
       --line: rgba(0, 0, 0, 0.08);
       --accent: #0891B2;
       --accent-2: #2563EB;
+      --accent-rgb: 8, 145, 178;
+      --accent-2-rgb: 37, 99, 235;
       --ok: #059669;
       --bad: #DC2626;
       --muted: #64748B;
@@ -91,7 +105,7 @@
     :root[data-theme="light"] .bar { background: rgba(15, 23, 42, .10); }
     :root[data-theme="light"] .skel { background: linear-gradient(100deg, rgba(15,23,42,.06) 30%, rgba(15,23,42,.12) 50%, rgba(15,23,42,.06) 70%); background-size: 200% 100%; }
     :root[data-theme="light"] .grabber { background: rgba(15, 23, 42, .18); }
-    :root[data-theme="light"] .vortex { background: radial-gradient(circle at 32% 30%, rgba(8,145,178,.10), rgba(255,255,255,.98) 65%); }
+    :root[data-theme="light"] .vortex { background: radial-gradient(circle at 32% 30%, rgba(var(--accent-rgb),.10), rgba(255,255,255,.98) 65%); }
     :root[data-theme="light"] .bg-black\/75 { background: rgba(15, 23, 42, .45) !important; }
     :root[data-theme="light"] .bg-black\/50 { background: rgba(15, 23, 42, .12) !important; }
     :root[data-theme="light"] .bg-white\/5,
@@ -112,8 +126,8 @@
     body {
       color: #F2F5FA;
       background-image:
-        radial-gradient(1000px 520px at 50% -12%, rgba(34, 211, 238, 0.10), transparent 70%),
-        radial-gradient(760px 560px at 100% 102%, rgba(59, 130, 246, 0.07), transparent 60%);
+        radial-gradient(1000px 520px at 50% -12%, rgba(var(--accent-rgb), 0.10), transparent 70%),
+        radial-gradient(760px 560px at 100% 102%, rgba(var(--accent-2-rgb), 0.07), transparent 60%);
       background-attachment: fixed;
     }
 
@@ -123,7 +137,7 @@
       border-radius: 24px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     }
-    .card-accent { border-color: rgba(34, 211, 238, 0.28); box-shadow: 0 12px 36px rgba(34, 211, 238, 0.08); }
+    .card-accent { border-color: rgba(var(--accent-rgb), 0.28); box-shadow: 0 12px 36px rgba(var(--accent-rgb), 0.08); }
 
     .btn {
       background: rgba(255, 255, 255, 0.06);
@@ -138,10 +152,10 @@
       color: #04121C;
       border: none;
       border-radius: 18px;
-      box-shadow: 0 12px 30px rgba(34, 211, 238, 0.30);
+      box-shadow: 0 12px 30px rgba(var(--accent-rgb), 0.30);
       transition: transform .15s ease, box-shadow .2s ease, opacity .2s ease;
     }
-    .btn-hero:active { transform: scale(0.98); box-shadow: 0 8px 20px rgba(34, 211, 238, 0.4); }
+    .btn-hero:active { transform: scale(0.98); box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.4); }
     .btn-hero:disabled { opacity: .55; cursor: not-allowed; }
 
     .chip {
@@ -151,9 +165,9 @@
       transition: all .15s ease;
     }
     .chip.on {
-      background: rgba(34,211,238,0.14);
-      border-color: rgba(34,211,238,0.4);
-      color: #7DE7F7;
+      background: rgba(var(--accent-rgb),0.14);
+      border-color: rgba(var(--accent-rgb),0.4);
+      color: var(--accent);
     }
 
     /* ---- HERO VORTEX BUTTON ---- */
@@ -161,9 +175,9 @@
       width: 132px; height: 132px; border-radius: 999px;
       display: flex; align-items: center; justify-content: center;
       position: relative; cursor: pointer; user-select: none;
-      background: radial-gradient(circle at 32% 30%, rgba(34,211,238,.16), rgba(9,14,26,.95) 65%);
-      border: 1px solid rgba(34,211,238,.35);
-      box-shadow: 0 0 44px rgba(34,211,238,.22), inset 0 0 26px rgba(34,211,238,.12);
+      background: radial-gradient(circle at 32% 30%, rgba(var(--accent-rgb),.16), rgba(9,14,26,.95) 65%);
+      border: 1px solid rgba(var(--accent-rgb),.35);
+      box-shadow: 0 0 44px rgba(var(--accent-rgb),.22), inset 0 0 26px rgba(var(--accent-rgb),.12);
       transition: transform .18s cubic-bezier(.4,0,.2,1);
     }
     .vortex:active { transform: scale(.93); }
@@ -177,7 +191,7 @@
     }
     .vortex::after {
       content: ''; position: absolute; inset: -16px; border-radius: 999px;
-      background: radial-gradient(circle, rgba(34,211,238,.16) 0%, transparent 68%);
+      background: radial-gradient(circle, rgba(var(--accent-rgb),.16) 0%, transparent 68%);
       animation: breathe 2.8s ease-in-out infinite;
       pointer-events: none;
     }
@@ -256,12 +270,16 @@
   <!-- TOAST -->
   <div id="appToast" class="fixed top-3 inset-x-4 z-50 transition-all duration-300 ease-out -translate-y-28 opacity-0 pointer-events-none flex justify-center">
     <div class="max-w-md w-full py-3 px-4 rounded-2xl dock flex items-center gap-3 pointer-events-auto">
-      <div id="toastIcon" class="w-9 h-9 rounded-xl bg-cyan-400/15 border border-cyan-300/25 flex items-center justify-center text-sm font-bold text-cyan-300">⚡</div>
+      <div id="toastIcon" class="w-9 h-9 rounded-xl bg-accent-soft border border-accent-soft flex items-center justify-center text-sm font-bold text-accent">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+      </div>
       <div class="min-w-0 flex-1">
         <p id="toastTitle" class="text-[13px] font-extrabold text-white truncate">DOWNI</p>
         <p id="toastMsg" class="text-[11px] text-zinc-400 truncate">Notification</p>
       </div>
-      <button onclick="hideToast()" class="text-zinc-500 hover:text-white text-xs px-2 py-1">✕</button>
+      <button onclick="hideToast()" class="text-zinc-500 hover:text-white px-2 py-1">
+        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
     </div>
   </div>
 
@@ -299,25 +317,30 @@
         <!-- Clipboard banner -->
         <div id="clipboardBanner" class="hidden card card-accent p-4 flex items-center justify-between gap-3 fade-in">
           <div class="flex items-center gap-3 min-w-0">
-            <div class="w-9 h-9 rounded-xl bg-cyan-400/15 border border-cyan-300/20 flex items-center justify-center text-base flex-shrink-0">📋</div>
+            <div class="w-9 h-9 rounded-xl bg-accent-soft border border-accent-soft flex items-center justify-center text-accent flex-shrink-0">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/></svg>
+            </div>
             <div class="min-w-0">
-              <p class="text-[10px] uppercase font-extrabold tracking-widest text-cyan-300">Link detected</p>
+              <p class="text-[10px] uppercase font-extrabold tracking-widest text-accent">Link detected</p>
               <p id="clipboardUrlText" class="text-xs font-mono text-zinc-300 truncate max-w-[170px] sm:max-w-xs">https://…</p>
             </div>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <button onclick="handleGrabClipboardLink()" class="btn px-3 py-2 text-[11px] font-bold text-zinc-300">Inspect</button>
-            <button onclick="handleClipboardFastDl()" class="btn-hero px-3.5 py-2 text-[11px] font-extrabold">⚡ Grab</button>
+            <button onclick="handleClipboardVortex()" class="btn-hero px-3.5 py-2 text-[11px] font-extrabold flex items-center gap-1.5">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+              Grab
+            </button>
           </div>
         </div>
 
         <!-- HERO -->
         <div class="card p-5 space-y-5 fade-in">
           <div class="flex flex-col items-center pt-2">
-            <div class="vortex" onclick="handleFastDlClick()">
-              <img src="logo.png" alt="Fast DL" class="w-[72px] h-[72px] rounded-full object-cover">
+            <div class="vortex" onclick="handleVortexClick()">
+              <img src="logo.png" alt="DOWNI Vortex" class="w-[72px] h-[72px] rounded-full object-cover">
             </div>
-            <p class="mt-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white">Tap the vortex</p>
+            <p class="mt-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white">Tap the Vortex</p>
             <p class="text-[10px] mt-0.5" style="color:var(--muted)">Grabs whatever link is on your clipboard — instantly</p>
           </div>
 
@@ -335,11 +358,13 @@
               </svg>
             </div>
             <input id="inputManualUrl" type="url" placeholder="Paste a video link…"
-              class="w-full bg-black/40 border border-white/10 rounded-2xl pl-11 pr-20 py-4 text-[13px] text-white placeholder-zinc-500 font-mono focus:border-cyan-300/50 transition"
+              class="w-full bg-black/40 border border-white/10 rounded-2xl pl-11 pr-20 py-4 text-[13px] text-white placeholder-zinc-500 font-mono transition"
               oninput="handleUrlInputChanged()" />
             <div class="absolute right-2.5 flex items-center gap-1">
-              <button id="btnClearInput" onclick="clearManualUrl()" class="hidden px-1.5 text-zinc-500 hover:text-white text-sm">✕</button>
-              <button onclick="handlePasteButton()" class="btn px-3 py-2 text-[11px] font-bold text-cyan-300">Paste</button>
+              <button id="btnClearInput" onclick="clearManualUrl()" class="hidden px-1.5 text-zinc-500 hover:text-white">
+                <svg viewBox="0 0 24 24" class="w-4 h-4 inline" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+              <button onclick="handlePasteButton()" class="btn px-3 py-2 text-[11px] font-bold text-accent">Paste</button>
             </div>
           </div>
 
@@ -347,17 +372,18 @@
             <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5">
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
-            <span id="btnInspectText">GRAB THIS LINK</span>
+            <span id="btnInspectText">Grab this link</span>
           </button>
 
           <div class="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400" title="YouTube blocks server-side downloads — use the free DOWNI Android app">YouTube → app</span>
-            <span class="chip on px-2.5 py-1 text-[9px] font-bold">TikTok · HD</span>
-            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">Instagram</span>
-            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">Facebook</span>
-            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">X</span>
-            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400">Reddit</span>
+            <span class="chip on px-2.5 py-1 text-[9px] font-bold" title="HD, no watermark — the reliable path">TikTok · HD</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-300" title="Best effort — Instagram sometimes blocks server-side downloads">Instagram</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-300" title="Best effort — server-side download, not guaranteed">Facebook</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-300" title="Best effort — server-side download, not guaranteed">X</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-300" title="Best effort — server-side download, not guaranteed">Reddit</span>
+            <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400" title="YouTube blocks server-side downloads — the free DOWNI Android app handles it fully on-device">YouTube → app</span>
           </div>
+          <p class="text-[9px] text-center leading-relaxed" style="color:var(--muted)">Instagram, Facebook, X and Reddit are best-effort — platforms sometimes block server-side grabs. The Android app does everything on-device.</p>
         </div>
 
         <!-- Active downloads -->
@@ -371,7 +397,9 @@
 
         <!-- iPhone hint -->
         <div class="card p-4 flex items-center gap-3 fade-in">
-          <div class="w-10 h-10 rounded-2xl bg-cyan-400/12 border border-cyan-300/20 flex items-center justify-center text-cyan-300 text-base flex-shrink-0">📲</div>
+          <div class="w-10 h-10 rounded-2xl bg-accent-soft border border-accent-soft flex items-center justify-center text-accent flex-shrink-0">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg>
+          </div>
           <div class="min-w-0 flex-1">
             <p class="text-[12px] font-extrabold text-white">IPHONE / SAFARI READY</p>
             <p class="text-[10px] mt-0.5" style="color:var(--muted)">Tap Share → 'Add to Home Screen' for fullscreen app mode</p>
@@ -392,7 +420,7 @@
 
         <div class="grid grid-cols-3 gap-3">
           <div class="card p-3.5 text-center">
-            <p id="statActive" class="text-xl font-extrabold font-mono text-cyan-300">0</p>
+            <p id="statActive" class="text-xl font-extrabold font-mono text-accent">0</p>
             <p class="text-[9px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--muted)">Active</p>
           </div>
           <div class="card p-3.5 text-center">
@@ -417,7 +445,9 @@
             <p class="text-[11px]" style="color:var(--muted)">Your saved downloads session</p>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="refreshVault()" class="btn w-9 h-9 flex items-center justify-center text-zinc-300 text-sm">↻</button>
+            <button onclick="refreshVault()" class="btn w-9 h-9 flex items-center justify-center text-zinc-300">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>
+            </button>
           </div>
         </div>
 
@@ -439,13 +469,15 @@
         <div class="card p-4 space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-cyan-400/12 border border-cyan-300/20 flex items-center justify-center text-base">🤖</div>
+              <div class="w-10 h-10 rounded-2xl bg-accent-soft border border-accent-soft flex items-center justify-center text-accent">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="18" rx="2.5"/><path d="M9 5V3.5A1.5 1.5 0 0110.5 2h3A1.5 1.5 0 0115 3.5V5M9.5 12h5M12 9.5v5"/></svg>
+              </div>
               <div>
                 <p class="text-[12px] font-extrabold text-white">DOWNI for Android</p>
-                <p id="apkVersionLabel" class="text-[11px] font-mono text-cyan-300 mt-0.5">Latest APK available</p>
+                <p id="apkVersionLabel" class="text-[11px] font-mono text-accent mt-0.5">Latest APK available</p>
               </div>
             </div>
-            <button id="btnInstallPwa" onclick="promptInstall()" class="hidden btn px-4 py-2.5 text-[11px] font-extrabold text-cyan-300">Install app</button>
+            <button id="btnInstallPwa" onclick="promptInstall()" class="hidden btn px-4 py-2.5 text-[11px] font-extrabold text-accent">Install app</button>
             <button onclick="openApkReleases()" class="btn-hero px-4 py-2.5 text-[11px] font-extrabold">Download APK</button>
           </div>
           <p class="text-[11px] leading-relaxed" style="color:var(--muted)">
@@ -461,7 +493,7 @@
               <p class="text-[12px] font-bold text-zinc-200">Light theme</p>
               <p class="text-[10px] mt-0.5" style="color:var(--muted)">Switch to a bright interface</p>
             </div>
-            <input type="checkbox" id="chkLightTheme" onchange="applyTheme(this.checked ? 'light' : 'dark')" class="w-5 h-5 accent-cyan-400">
+            <input type="checkbox" id="chkLightTheme" onchange="applyTheme(this.checked ? 'light' : 'dark')" class="w-5 h-5">
           </div>
         </div>
 
@@ -469,7 +501,9 @@
         <div class="card p-4 space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-emerald-400/10 border border-emerald-300/20 flex items-center justify-center text-base">⚙️</div>
+              <div class="w-10 h-10 rounded-2xl bg-emerald-400/10 border border-emerald-300/20 flex items-center justify-center text-emerald-300">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+              </div>
               <div>
                 <p class="text-[12px] font-extrabold text-white">Cloud Engine</p>
                 <p id="engineVersionText" class="text-[11px] mt-0.5" style="color:var(--muted)">yt-dlp 2026.8.19 (Serverless)</p>
@@ -494,7 +528,10 @@
             <span class="text-[11px]" style="color:var(--muted)">Developer</span>
             <span class="text-[12px] font-bold text-zinc-200">MansoorjAhmad</span>
           </div>
-          <button onclick="openGitHubRepo()" class="btn w-full py-3 mt-2 text-[11px] font-extrabold text-cyan-300">⭐ Star DOWNI on GitHub</button>
+          <button onclick="openGitHubRepo()" class="btn w-full py-3 mt-2 text-[11px] font-extrabold text-accent flex items-center justify-center gap-2">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"/></svg>
+            Star DOWNI on GitHub
+          </button>
           <a href="/privacy" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400" style="display:block;text-align:center">Privacy — no accounts, no tracking</a>
         </div>
 
@@ -538,7 +575,9 @@
       <div class="grabber" data-drag-dismiss="inspectorSheet"></div>
       <div class="flex items-center justify-between mt-2 mb-4">
         <span id="inspectorPlatformBadge" class="chip on px-3 py-1 text-[9px] font-extrabold uppercase tracking-widest">Video</span>
-        <button onclick="closeInspector()" class="btn w-9 h-9 flex items-center justify-center text-zinc-400 text-sm">✕</button>
+        <button onclick="closeInspector()" class="btn w-9 h-9 flex items-center justify-center text-zinc-400">
+          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
       </div>
 
       <div class="aspect-video w-full rounded-2xl bg-black/60 overflow-hidden relative mb-4" style="border:1px solid rgba(255,255,255,.08)">
@@ -555,8 +594,8 @@
         <div class="skel h-14"></div><div class="skel h-14"></div><div class="skel h-14"></div>
       </div>
 
-      <div id="iosTipNotice" class="hidden mt-3 p-3 rounded-xl bg-cyan-400/10 border border-cyan-300/20 text-[11px] text-cyan-200">
-        💡 <b>iPhone users:</b> After tapping Download, if Safari plays video in browser, tap Share icon → <b>Save to Files / Photos</b>.
+      <div id="iosTipNotice" class="hidden mt-3 p-3 rounded-xl bg-accent-soft border border-accent-soft text-[11px] text-accent">
+        💡&nbsp;<b>iPhone users:</b> After tapping Download, if Safari plays video in browser, tap Share icon → <b>Save to Files / Photos</b>.
       </div>
 
       <button id="btnConfirmDownloadQuality" onclick="proceedSelectedQualityDownload()" class="btn-hero w-full py-4 mt-4 text-[13px] font-extrabold">
@@ -572,7 +611,9 @@
     <div class="absolute inset-x-0 bottom-0 sheet p-5 pb-7 max-w-xl mx-auto">
       <div class="grabber"></div>
       <div class="flex items-center gap-3 mt-3 mb-4">
-        <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3)">📲</div>
+        <div class="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-accent" style="background:rgba(var(--accent-rgb),.12); border:1px solid rgba(var(--accent-rgb),.3)">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg>
+        </div>
         <div class="min-w-0">
           <h3 class="text-[14px] font-extrabold text-white">Ready to save</h3>
           <p id="iosSaveName" class="text-[10px] font-mono" style="color:var(--muted)">video.mp4</p>
@@ -581,7 +622,7 @@
       <p class="text-[12px] leading-relaxed text-zinc-300">
         The video opens in a new tab. Tap the <b>Share</b> icon → <b>Save to Files</b> or <b>Save Video</b> to keep it on your iPhone.
       </p>
-      <button id="btnIosOpenCdn" onclick="openIosCdn()" class="btn-hero w-full py-4 mt-4 text-[13px] font-extrabold">OPEN &amp; SAVE VIDEO</button>
+      <button id="btnIosOpenCdn" onclick="openIosCdn()" class="btn-hero w-full py-4 mt-4 text-[13px] font-extrabold">Open &amp; save video</button>
       <button onclick="closeIosSave()" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400">Close</button>
     </div>
   </div>
@@ -612,7 +653,7 @@
 
   <script>
     const GITHUB_REPO = 'MansoorjAhmad/Downi';
-    const WEB_VERSION = '2.0.0';
+    const WEB_VERSION = '2.1.0';
     const API_HDR = { 'X-Downi-Web': '1', 'Content-Type': 'application/json' };
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -624,6 +665,7 @@
 
     let downloadsHistory = [];
     const activeJobs = new Map();
+    let jobSeq = 0;
     let completedCount = 0;
     let grabbedBytes = 0;
 
@@ -659,26 +701,37 @@
     }
 
     // ================= Toast =================
+    let toastTimer = null;
     function showToast(title, msg, type = 'info') {
       document.getElementById('toastTitle').innerText = title;
       document.getElementById('toastMsg').innerText = msg;
       const icon = document.getElementById('toastIcon');
+      const SVG = {
+        success: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+        error: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+        info: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>'
+      };
       if (type === 'success') {
-        icon.innerText = '✓';
+        icon.innerHTML = SVG.success;
         icon.style.cssText = 'background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35);color:var(--ok)';
       } else if (type === 'error') {
-        icon.innerText = '✕';
+        icon.innerHTML = SVG.error;
         icon.style.cssText = 'background:rgba(251,113,133,.14);border-color:rgba(251,113,133,.35);color:var(--bad)';
       } else {
-        icon.innerText = '⚡';
-        icon.style.cssText = 'background:rgba(34,211,238,.14);border-color:rgba(34,211,238,.35);color:var(--accent)';
+        icon.innerHTML = SVG.info;
+        icon.style.cssText = 'background:rgba(var(--accent-rgb),.14);border-color:rgba(var(--accent-rgb),.35);color:var(--accent)';
       }
       const toast = document.getElementById('appToast');
       toast.classList.remove('-translate-y-28', 'opacity-0');
       toast.classList.add('translate-y-0', 'opacity-100');
-      setTimeout(hideToast, 3500);
+      // One timer per toast — a fresh toast restarts the clock instead of
+      // being murdered early by the previous toast's timer (W5).
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideToast, 3500);
     }
     function hideToast() {
+      clearTimeout(toastTimer);
+      toastTimer = null;
       const toast = document.getElementById('appToast');
       toast.classList.add('-translate-y-28', 'opacity-0');
       toast.classList.remove('translate-y-0', 'opacity-100');
@@ -708,7 +761,7 @@
       }
     }
 
-    function handleClipboardFastDl() {
+    function handleClipboardVortex() {
       if (detectedClipboardUrl) {
         document.getElementById('inputManualUrl').value = detectedClipboardUrl;
         document.getElementById('clipboardBanner')?.classList.add('hidden');
@@ -742,7 +795,7 @@
     }
 
     // ================= Fast DL & Inspect =================
-    async function handleFastDlClick() {
+    async function handleVortexClick() {
       const vortex = document.querySelector('.vortex');
       if (vortex) {
         vortex.style.transform = 'scale(0.9)';
@@ -762,7 +815,7 @@
         } catch (e) {}
       }
       if (!clean) {
-        showToast('Fast DL needs a link', 'Copy any reel or video link, then tap the vortex.', 'info');
+        showToast('The Vortex needs a link', 'Copy any video link, then tap the Vortex.', 'info');
         return;
       }
       currentInspectedUrl = clean;
@@ -784,7 +837,7 @@
         } catch (e) {}
       }
       if (!clean) {
-        showToast('Paste a link first', 'Then tap GRAB THIS LINK.', 'info');
+        showToast('Paste a link first', 'Then tap Grab this link.', 'info');
         return;
       }
       handleInspectAndOpenModal(clean);
@@ -793,7 +846,7 @@
     async function handleInspectAndOpenModal(url) {
       currentInspectedUrl = url;
       const btn = document.getElementById('btnInspectText');
-      if (btn) btn.innerText = 'SCANNING…';
+      if (btn) btn.innerText = 'Scanning…';
 
       document.getElementById('inspectorThumbSkel').style.display = '';
       document.getElementById('inspectorThumbnail').src = 'assets/logo.png';
@@ -823,7 +876,7 @@
         closeInspector();
         showToast('Inspect failed', e?.message || 'Check the link and try again.', 'error');
       } finally {
-        if (btn) btn.innerText = 'GRAB THIS LINK';
+        if (btn) btn.innerText = 'Grab this link';
       }
     }
 
@@ -844,13 +897,13 @@
         <div id="quality_card_${fmt.id}" onclick="selectInspectorQuality('${fmt.id}', '${escapeHtml(fmt.label)}')"
           class="quality-card flex items-center justify-between gap-3 p-3.5 rounded-2xl cursor-pointer transition ${fmt.id === selectedInspectorQuality ? 'chip on' : 'chip'}">
           <div class="flex items-center gap-3 min-w-0">
-            <span class="qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 ${fmt.id === selectedInspectorQuality ? 'bg-cyan-400 text-black' : 'bg-white/5 text-cyan-300'}">${fmt.badge || 'HD'}</span>
+            <span class="qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 ${fmt.id === selectedInspectorQuality ? 'qx-on' : 'bg-white/5 text-accent'}">${fmt.badge || 'HD'}</span>
             <div class="min-w-0">
               <p class="text-[12px] font-bold text-white truncate">${escapeHtml(fmt.label)}</p>
               <p class="text-[9px] font-mono uppercase mt-0.5" style="color:var(--muted)">${fmt.ext || 'mp4'}</p>
             </div>
           </div>
-          <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${fmt.id === selectedInspectorQuality ? 'bg-cyan-400 text-black' : 'bg-white/5 text-zinc-400'}">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${fmt.id === selectedInspectorQuality ? 'qx-on' : 'bg-white/5 text-zinc-400'}">
             <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 3v13M7 11l5 5 5-5M5 21h14"/></svg>
           </div>
         </div>
@@ -862,13 +915,13 @@
       document.querySelectorAll('.quality-card').forEach(el => {
         el.classList.remove('on');
         const badge = el.querySelector('.qx');
-        if (badge) badge.className = 'qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 bg-white/5 text-cyan-300';
+        if (badge) badge.className = 'qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 bg-white/5 text-accent';
       });
       const selectedEl = document.getElementById(`quality_card_${fmtId}`);
       if (selectedEl) {
         selectedEl.classList.add('on');
         const badge = selectedEl.querySelector('.qx');
-        if (badge) badge.className = 'qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 bg-cyan-400 text-black';
+        if (badge) badge.className = 'qx px-2.5 py-1 rounded-lg font-mono text-[11px] font-extrabold flex-shrink-0 qx-on';
       }
       updateConfirmButtonText(fmtLabel);
     }
@@ -894,13 +947,13 @@
       try { label = new URL(url).hostname.replace('www.', ''); } catch (e) {}
       if (formatId === 'audio') label += ' · MP3';
 
-      const jobId = 'job_' + Date.now();
+      const jobId = 'job_' + Date.now() + '_' + (jobSeq++);
       const job = {
         label,
         status: 'Connecting…',
         percent: 15,
         size: '',
-        speed: '⚡ Live',
+        speed: '', // no fake "live" label — a speed only shows when it's real (W10)
         eta: '',
         done: false,
         controller: new AbortController()
@@ -1040,7 +1093,8 @@
         renderJobCards();
         updateQueueBadge();
         if (err.name === 'AbortError') {
-          showToast('Cancelled', 'Download stopped.', 'info');
+          // Cancel toasts at the call-site (with the job label) — a second
+          // generic toast here would overwrite it (W1).
         } else {
           onDownloadError(err.message || 'Stream error', url, formatId);
         }
@@ -1103,14 +1157,14 @@
                 : '<span class="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style="background:var(--accent)"></span>'}
               <p class="text-[12px] font-extrabold text-white truncate">${escapeHtml(job.label)} ${job.done ? '<span style="color:var(--ok)">Saved ✓</span>' : ''}</p>
             </div>
-            <span class="text-[12px] font-mono font-bold ${job.done ? '' : 'text-cyan-300'} flex-shrink-0" ${job.done ? 'style="color:var(--ok)"' : ''}>${Math.round(job.percent)}%</span>
+            <span class="text-[12px] font-mono font-bold ${job.done ? '' : 'text-accent'} flex-shrink-0" ${job.done ? 'style="color:var(--ok)"' : ''}>${Math.round(job.percent)}%</span>
           </div>
           <div class="bar ${job.done ? '' : 'live'}"><div style="width:${Math.max(2, job.percent)}%"></div></div>
           <div class="flex items-center justify-between text-[10px] font-mono" style="color:var(--muted)">
             <span>${escapeHtml(job.size || job.status)}</span>
             <div class="flex items-center gap-3">
               ${job.speed ? `<span class="text-emerald-300 font-bold">${escapeHtml(job.speed)}</span>` : ''}
-              ${job.done ? '' : `<button onclick="cancelOneDownload('${id}')" class="font-sans font-bold" style="color:var(--bad)">✕</button>`}
+              ${job.done ? '' : `<button onclick="cancelOneDownload('${id}')" class="font-sans font-bold inline-flex items-center" style="color:var(--bad)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`}
             </div>
           </div>
         </div>
@@ -1161,7 +1215,7 @@
             <div class="card card-accent p-3.5 space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-[12px] font-bold text-white truncate">${escapeHtml(j.label)}</span>
-                <span class="text-[11px] font-mono font-bold text-cyan-300">${Math.round(j.percent)}%</span>
+                <span class="text-[11px] font-mono font-bold text-accent">${Math.round(j.percent)}%</span>
               </div>
               <div class="bar live"><div style="width:${Math.max(2, j.percent)}%"></div></div>
             </div>
@@ -1213,9 +1267,12 @@
       ['vaultChipAll', 'vaultChipVideo', 'vaultChipAudio'].forEach(id => document.getElementById(id)?.classList.remove('on'));
       document.getElementById({ all: 'vaultChipAll', video: 'vaultChipVideo', audio: 'vaultChipAudio' }[vaultFilter])?.classList.add('on');
 
-      let items = downloadsHistory;
-      if (vaultFilter === 'video') items = items.filter(i => !i.title.toLowerCase().endsWith('.mp3') && !i.title.toLowerCase().endsWith('.m4a'));
-      if (vaultFilter === 'audio') items = items.filter(i => i.title.toLowerCase().endsWith('.mp3') || i.title.toLowerCase().endsWith('.m4a'));
+      // Keep the ORIGINAL history index on every row — a filtered view must not
+      // renumber items, or Remove/Again would act on the wrong entry (W9).
+      let items = downloadsHistory.map((item, idx) => ({ item, idx }));
+      // Filter by the stored format, not by guessing filename suffixes (W8).
+      if (vaultFilter === 'video') items = items.filter(e => e.item.formatId !== 'audio');
+      if (vaultFilter === 'audio') items = items.filter(e => e.item.formatId === 'audio');
 
       if (items.length === 0) {
         grid.innerHTML = `
@@ -1228,11 +1285,11 @@
         return;
       }
 
-      grid.innerHTML = items.map((item, idx) => `
+      grid.innerHTML = items.map(({ item, idx }) => `
         <div class="card overflow-hidden fade-in">
           <div class="aspect-square bg-black/50 relative flex items-center justify-center overflow-hidden">
             <div class="text-center">
-              <div class="text-3xl mb-1">${item.title.toLowerCase().includes('.m') && (item.title.endsWith('.mp3') || item.title.endsWith('.m4a')) ? '🎵' : '🎬'}</div>
+              <div class="text-3xl mb-1">${item.formatId === 'audio' ? '🎵' : '🎬'}</div>
               <p class="text-[8px] font-mono" style="color:var(--muted)">SAVED</p>
             </div>
             <div class="absolute inset-x-0 bottom-0 h-10" style="background:linear-gradient(to top, rgba(0,0,0,.65), transparent)"></div>
@@ -1241,7 +1298,7 @@
             <h4 class="text-[11px] font-bold text-white truncate" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h4>
             <p class="text-[9px] font-mono truncate" style="color:var(--muted)">${escapeHtml(item.date)}</p>
             <div class="flex gap-1.5 pt-1.5">
-              ${item.url ? `<button onclick="redownloadVaultItem(${idx})" class="btn flex-1 py-1.5 text-[10px] font-bold text-cyan-300">↻ Again</button>` : ''}
+              ${item.url ? `<button onclick="redownloadVaultItem(${idx})" class="btn flex-1 py-1.5 text-[10px] font-bold text-accent flex items-center justify-center gap-1"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>Again</button>` : ''}
               <button onclick="removeVaultItem(${idx})" class="btn ${item.url ? 'flex-1' : 'w-full'} py-1.5 text-[10px] font-bold" style="color:var(--bad)">Remove</button>
             </div>
           </div>
@@ -1302,7 +1359,7 @@
     function retryCurrentDownload() {
       closeErrorModal();
       if (lastFailedUrl) initiateDownload(lastFailedUrl, lastFailedFormat);
-      else handleFastDlClick();
+      else handleVortexClick();
     }
 
     // ================= Theme & Settings =================
@@ -1317,11 +1374,11 @@
       }
       const chk = document.getElementById('chkLightTheme');
       if (chk) chk.checked = (theme === 'light');
-      try { localStorage.setItem('omni_theme', theme); } catch(e) {}
+      try { localStorage.setItem('downi_web_theme', theme); localStorage.removeItem('omni_theme'); } catch(e) {}
     }
     function initTheme() {
       let saved = '';
-      try { saved = localStorage.getItem('omni_theme') || ''; } catch(e) {}
+      try { saved = (localStorage.getItem('downi_web_theme') || localStorage.getItem('omni_theme')) || ''; } catch(e) {}
       if (!saved) {
         // No explicit choice yet → follow the system preference.
         try { saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
@@ -1391,11 +1448,15 @@
       return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
     function saveHistory() {
-      try { localStorage.setItem('downi_web_history', JSON.stringify(downloadsHistory)); } catch (e) {}
+      try {
+        localStorage.setItem('downi_web_history', JSON.stringify(downloadsHistory));
+        localStorage.setItem('downi_web_bytes', String(grabbedBytes)); // stats survive restarts (W7)
+      } catch (e) {}
     }
     function loadHistory() {
       try { downloadsHistory = JSON.parse(localStorage.getItem('downi_web_history') || '[]'); } catch (e) { downloadsHistory = []; }
       completedCount = downloadsHistory.length;
+      grabbedBytes = parseInt(localStorage.getItem('downi_web_bytes') || '0', 10) || 0;
     }
 
     // ================= v2.0: share-target, drag & drop, install prompt =================
