@@ -253,7 +253,7 @@ class Handler(BaseHTTPRequestHandler):
         self._json(200, {"ok": True})
 
     def do_GET(self):
-        self._json(200, {"ok": True, "service": "downi-web-info", "version": "1.1.0"})
+        self._json(200, {"ok": True, "service": "downi-web-info", "version": "2.1.1"})
 
     def do_POST(self):
         # Auth check

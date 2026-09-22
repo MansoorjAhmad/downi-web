@@ -653,7 +653,7 @@
 
   <script>
     const GITHUB_REPO = 'MansoorjAhmad/Downi';
-    const WEB_VERSION = '2.1.0';
+    const WEB_VERSION = '2.1.1';
     const API_HDR = { 'X-Downi-Web': '1', 'Content-Type': 'application/json' };
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -1279,7 +1279,7 @@
           <div class="col-span-2 card p-10 text-center fade-in">
             <div class="text-3xl mb-2">🎬</div>
             <p class="text-[12px] font-bold text-white">Nothing here yet</p>
-            <p class="text-[11px] mt-1" style="color:var(--muted)">Grabbed videos land in the Vault automatically.</p>
+            <p class="text-[11px] mt-1" style="color:var(--muted)">Grabbed videos land in the Vault automatically. Tap a card to grab it again.</p>
           </div>
         `;
         return;
@@ -1287,19 +1287,19 @@
 
       grid.innerHTML = items.map(({ item, idx }) => `
         <div class="card overflow-hidden fade-in">
-          <div class="aspect-square bg-black/50 relative flex items-center justify-center overflow-hidden">
+          <div class="aspect-square bg-black/50 relative flex items-center justify-center overflow-hidden ${item.url ? 'cursor-pointer' : ''}" ${item.url ? `onclick="redownloadVaultItem(${idx})" title="Tap to grab again"` : ''}>
             <div class="text-center">
               <div class="text-3xl mb-1">${item.formatId === 'audio' ? '🎵' : '🎬'}</div>
               <p class="text-[8px] font-mono" style="color:var(--muted)">SAVED</p>
             </div>
             <div class="absolute inset-x-0 bottom-0 h-10" style="background:linear-gradient(to top, rgba(0,0,0,.65), transparent)"></div>
           </div>
-          <div class="p-3 space-y-1">
+          <div class="p-3 space-y-1 ${item.url ? 'cursor-pointer' : ''}" ${item.url ? `onclick="redownloadVaultItem(${idx})" title="Tap to grab again"` : ''}>
             <h4 class="text-[11px] font-bold text-white truncate" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h4>
             <p class="text-[9px] font-mono truncate" style="color:var(--muted)">${escapeHtml(item.date)}</p>
             <div class="flex gap-1.5 pt-1.5">
-              ${item.url ? `<button onclick="redownloadVaultItem(${idx})" class="btn flex-1 py-1.5 text-[10px] font-bold text-accent flex items-center justify-center gap-1"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>Again</button>` : ''}
-              <button onclick="removeVaultItem(${idx})" class="btn ${item.url ? 'flex-1' : 'w-full'} py-1.5 text-[10px] font-bold" style="color:var(--bad)">Remove</button>
+              ${item.url ? `<button onclick="event.stopPropagation();redownloadVaultItem(${idx})" class="btn flex-1 py-1.5 text-[10px] font-bold text-accent flex items-center justify-center gap-1"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>Again</button>` : ''}
+              <button onclick="event.stopPropagation();removeVaultItem(${idx})" class="btn ${item.url ? 'flex-1' : 'w-full'} py-1.5 text-[10px] font-bold" style="color:var(--bad)">Remove</button>
             </div>
           </div>
         </div>
@@ -1494,6 +1494,9 @@
       });
       window.addEventListener('paste', (e) => {
         try {
+          // Don't hijack pastes meant for other form fields.
+          const t = e.target;
+          if (t && t !== document.getElementById('inputManualUrl') && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
           const text = e.clipboardData ? (e.clipboardData.getData('text') || '') : '';
           const clean = extractUrl(text);
           if (clean && document.activeElement !== document.getElementById('inputManualUrl')) {
