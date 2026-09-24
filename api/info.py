@@ -257,6 +257,7 @@ _BLOCK_MSGS = {
 _BLOCK_HINTS = (
     "login", "logged-in", "cookies", "empty media", "rate-limit",
     "rate limit", "403", "forbidden", "blocked", "checkpoint",
+    "cannot parse data",
 )
 
 
