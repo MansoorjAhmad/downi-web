@@ -1,4 +1,4 @@
-# DOWNI Web v1.1 ⚡
+# DOWNI Web ⚡
 
 > **Grab any video. One tap. Zero clutter.**  
 > Official web app for iOS, Android, and desktop browsers.
@@ -11,8 +11,9 @@ Vanilla JS + Tailwind (fully local — no CDN), an installable PWA with an offli
 
 ## 🚀 Features
 
-- **Multi-platform**: TikTok (HD, no watermark), Instagram, Facebook, X, Reddit, Pinterest + any public **direct media link** (HTTPS).
-- **YouTube**: intentionally not available on web — YouTube blocks datacenter-IP extraction and client spoofing is permanently banned (see `READ_THIS_BEFORE_UPGRADE.md` in the Android repo). The free **DOWNI Android app** handles YouTube fully on-device.
+- **Works great on web**: TikTok (HD, no watermark, fast mirror path with rate-limit retry), Pinterest + any public **direct media link** (HTTPS). Reddit and more ride yt-dlp's best-effort path.
+- **Honest about the rest**: YouTube, Instagram, Facebook and X block datacenter-IP extraction. The web app says so in one plain sentence — never raw extractor logs — and points you to the free **DOWNI Android app**, which grabs them fully on-device. (Client spoofing is permanently banned: see `READ_THIS_BEFORE_UPGRADE.md` in the Android repo.)
+- **Facebook link-shapes**: modern share links (`fb.watch`, `/share/v/…`, `m.facebook.com`, `/watch/<page>/<id>/`) are normalized to the canonical form before extraction.
 - **Quality picker**: up to 1080p where a platform serves a muxed stream, plus 720p / 480p / audio-only.
 - **Big-file safe**: streams straight to disk via the File System Access API on Chromium (no RAM buffering); blob fallback on Safari/Firefox; a dedicated save sheet on iOS.
 - **Offline-ready PWA**: installable, light/dark theme (system default), local icons/fonts/runtime cached by a service worker.
@@ -33,5 +34,5 @@ Vanilla JS + Tailwind (fully local — no CDN), an installable PWA with an offli
 
 ## 🔢 Versioning
 
-The web app has its own semver line (currently **v1.1.0**), decoupled from the Android app's versions.
+The web app has its own semver line (currently **v2.1.1**), decoupled from the Android app's versions.
 

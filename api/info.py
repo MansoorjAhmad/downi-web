@@ -7,6 +7,7 @@ Protected by X-Downi-Web: 1 header.
 
 import json
 import re
+import time
 import ipaddress
 import urllib.parse
 import urllib.request
@@ -32,6 +33,7 @@ _PLATFORM_RE = {
     "twitter":   r"twitter\.com|x\.com",
     "facebook":  r"facebook\.com|fb\.watch",
     "reddit":    r"reddit\.com|v\.redd\.it",
+    "pinterest": r"pinterest\.com|pin\.it",
 }
 
 
@@ -162,7 +164,7 @@ def _expand_tiktok_shortlink(url: str) -> str:
         return url
 
 
-def _tiktok_fetch(url: str) -> dict:
+def _tiktok_fetch(url: str, _retried: bool = False) -> dict:
     data = urllib.parse.urlencode(
         {"url": url, "count": 12, "cursor": 0, "web": 1, "hd": 1}
     ).encode("utf-8")
@@ -176,7 +178,18 @@ def _tiktok_fetch(url: str) -> dict:
         },
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+        parsed = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    # tikwm's free tier allows 1 request/second globally, and every web user
+    # shares that one budget through this endpoint. Hitting the limit is not a
+    # failure — wait out the window and retry exactly once.
+    if (
+        not _retried
+        and parsed.get("code") != 0
+        and "limit" in str(parsed.get("msg", "")).lower()
+    ):
+        time.sleep(1.3)
+        return _tiktok_fetch(url, _retried=True)
+    return parsed
 
 
 def _tiktok_info(url: str) -> dict:
@@ -201,6 +214,77 @@ def _tiktok_info(url: str) -> dict:
             {"id": "audio", "label": "Audio Track (MP3)", "badge": "MP3", "ext": "mp3"},
         ],
     }
+
+
+# --- Facebook URL shapes ---------------------------------------------------
+# Facebook invents a new URL shape every few months; yt-dlp only groks the
+# classics. Normalize to /watch?v=<id> where possible and expand share links.
+
+def _normalize_facebook(url: str) -> str:
+    u = url.strip()
+    # m./mobile./web. subdomains → canonical www host
+    u = re.sub(
+        r"^(https?://)(?:m|mobile|web)\.facebook\.com",
+        r"\1www.facebook.com", u, flags=re.I,
+    )
+    # Share/short links: follow redirects to the canonical target.
+    if re.search(r"fb\.watch/|facebook\.com/share/", u, re.I):
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": _TIKWM_UA})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                u = resp.geturl() or u
+        except Exception:
+            pass  # keep the original; yt-dlp may still cope
+    # /watch/<page>/<id>/ → /watch?v=<id>  (the shape yt-dlp understands)
+    m = re.search(r"facebook\.com/watch/[^/?]+/(\d{6,})", u, re.I)
+    if m:
+        return f"https://www.facebook.com/watch/?v={m.group(1)}"
+    return u
+
+
+# --- Honest errors ---------------------------------------------------------
+# Raw yt-dlp output (extractor prefixes, CLI flags like --cookies-from-
+# browser, FAQ links) must never reach a phone screen. Map the failure class
+# to one human sentence; when a platform is blocking our datacenter IPs, say
+# so and point to the on-device app — same doctrine as YouTube.
+
+_BLOCK_MSGS = {
+    "instagram": "Instagram is blocking web downloads right now. The free DOWNI Android app grabs Instagram on-device — no blocks.",
+    "facebook": "Facebook is blocking web downloads right now. The free DOWNI Android app grabs Facebook videos on-device.",
+    "twitter": "X is fighting web downloads right now. The free DOWNI Android app grabs it on-device.",
+    "reddit": "Reddit is fighting web downloads right now. The free DOWNI Android app grabs it on-device.",
+}
+_BLOCK_HINTS = (
+    "login", "logged-in", "cookies", "empty media", "rate-limit",
+    "rate limit", "403", "forbidden", "blocked", "checkpoint",
+)
+
+
+def _friendly_error(raw: str, platform: str) -> str:
+    msg = re.sub(r"^ERROR:\s*\[[^\]]*\]\s*[^:]*:\s*", "", (raw or "").strip())
+    low = msg.lower()
+    if "no video could be found" in low:
+        return "No video found in this post — it may be a photo or text post."
+    if "private" in low:
+        return "This post is private — it can't be grabbed."
+    if any(h in low for h in _BLOCK_HINTS):
+        return _BLOCK_MSGS.get(
+            platform,
+            "This platform is blocking web downloads right now. The free DOWNI Android app grabs it on-device.",
+        )
+    if "not available" in low or "removed" in low or "404" in low:
+        return "This post is unavailable in your region or has been removed."
+    if "unsupported url" in low:
+        return (
+            "This link isn't supported on web. TikTok, Pinterest and direct "
+            "media links work here; the DOWNI Android app handles the rest."
+        )
+    if "timed out" in low or "timeout" in low:
+        return "The platform took too long to answer — try again in a moment."
+    # Last resort: cleaned text, cut at a word boundary instead of mid-word.
+    if len(msg) > 180:
+        msg = msg[:180].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+    return msg or "This link could not be grabbed right now."
 
 
 def _build_formats(info: dict) -> list:
@@ -261,6 +345,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(403, {"ok": False, "error": "Forbidden"})
             return
 
+        platform = "web"  # may be refined below; needed by the error handler
         try:
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length) if length else b"{}"
@@ -272,13 +357,16 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             if not _url_allowed(url):
-                self._json(400, {"ok": False, "error": "This link is not supported. Try YouTube, Instagram, TikTok, Facebook, X, Reddit, Pinterest, or a direct media link."})
+                self._json(400, {"ok": False, "error": "This link isn't supported on web. TikTok, Pinterest and direct media links work here; the DOWNI Android app handles YouTube, Instagram, Facebook & X."})
                 return
 
             platform = _detect_platform(url)
             if platform == "youtube":
                 self._json(502, {"ok": False, "error": _YOUTUBE_MSG})
                 return
+
+            if platform == "facebook":
+                url = _normalize_facebook(url)
 
             if _DIRECT_MEDIA_RE.search(url.split("#")[0]):
                 self._json(200, _direct_media_info(url))
@@ -318,15 +406,7 @@ class Handler(BaseHTTPRequestHandler):
             })
 
         except Exception as exc:
-            msg = str(exc)[:350]
-            # Friendly error messages
-            if "private" in msg.lower() or "login" in msg.lower():
-                msg = "This video is private or requires login — it can't be downloaded."
-            elif "not available" in msg.lower():
-                msg = "This video is not available in your region or has been removed."
-            elif "unsupported url" in msg.lower():
-                msg = "This link isn't supported yet. Try YouTube, Instagram, TikTok, or Twitter."
-            self._json(502, {"ok": False, "error": msg})
+            self._json(502, {"ok": False, "error": _friendly_error(str(exc), platform)})
 
 
 handler = Handler

@@ -1,7 +1,7 @@
 /* DOWNI Web service worker — offline app shell.
  * Navigations: network-first (fresh deploys win), cached shell as fallback.
  * Static assets: cache-first. /api/* always goes to the network. */
-const CACHE = 'downi-web-v1.1';
+const CACHE = 'downi-web-v2.1';
 const SHELL = [
   '/',
   '/index.html',

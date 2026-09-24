@@ -8,6 +8,7 @@ Falls back to a JSON { cdnUrl, filename } response for iOS Safari (caller opens 
 
 import json
 import re
+import time
 import ipaddress
 import urllib.parse
 import urllib.request
@@ -86,7 +87,7 @@ def _expand_tiktok_shortlink(url: str) -> str:
         return url
 
 
-def _tiktok_fetch(url: str) -> dict:
+def _tiktok_fetch(url: str, _retried: bool = False) -> dict:
     data = urllib.parse.urlencode(
         {"url": url, "count": 12, "cursor": 0, "web": 1, "hd": 1}
     ).encode("utf-8")
@@ -100,7 +101,18 @@ def _tiktok_fetch(url: str) -> dict:
         },
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+        parsed = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    # tikwm's free tier allows 1 request/second globally, and every web user
+    # shares that one budget through this endpoint. Hitting the limit is not a
+    # failure — wait out the window and retry exactly once.
+    if (
+        not _retried
+        and parsed.get("code") != 0
+        and "limit" in str(parsed.get("msg", "")).lower()
+    ):
+        time.sleep(1.3)
+        return _tiktok_fetch(url, _retried=True)
+    return parsed
 
 
 def _tiktok_resolve(url: str, fmt_id: str):
@@ -189,6 +201,84 @@ def _url_allowed(url: str) -> bool:
         return True
     # Direct media file links stay supported from any public HTTPS host.
     return url.lower().startswith("https://") and _is_direct_media(url)
+
+
+# --- Facebook URL shapes + honest errors (mirrors api/info.py) -------------
+# These two serverless functions can't share a module on this deploy target,
+# so the helpers are intentionally duplicated — keep them in sync.
+
+_PLATFORM_DETECT_RE = {
+    "instagram": r"instagram\.com",
+    "tiktok":    r"tiktok\.com",
+    "twitter":   r"twitter\.com|x\.com",
+    "facebook":  r"facebook\.com|fb\.watch",
+    "reddit":    r"reddit\.com|v\.redd\.it",
+    "pinterest": r"pinterest\.com|pin\.it",
+}
+
+
+def _detect_platform(url: str) -> str:
+    for name, pattern in _PLATFORM_DETECT_RE.items():
+        if re.search(pattern, url, re.I):
+            return name
+    return "web"
+
+
+def _normalize_facebook(url: str) -> str:
+    u = url.strip()
+    u = re.sub(
+        r"^(https?://)(?:m|mobile|web)\.facebook\.com",
+        r"\1www.facebook.com", u, flags=re.I,
+    )
+    if re.search(r"fb\.watch/|facebook\.com/share/", u, re.I):
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": _TIKWM_UA})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                u = resp.geturl() or u
+        except Exception:
+            pass  # keep the original; yt-dlp may still cope
+    m = re.search(r"facebook\.com/watch/[^/?]+/(\d{6,})", u, re.I)
+    if m:
+        return f"https://www.facebook.com/watch/?v={m.group(1)}"
+    return u
+
+
+_BLOCK_MSGS = {
+    "instagram": "Instagram is blocking web downloads right now. The free DOWNI Android app grabs Instagram on-device — no blocks.",
+    "facebook": "Facebook is blocking web downloads right now. The free DOWNI Android app grabs Facebook videos on-device.",
+    "twitter": "X is fighting web downloads right now. The free DOWNI Android app grabs it on-device.",
+    "reddit": "Reddit is fighting web downloads right now. The free DOWNI Android app grabs it on-device.",
+}
+_BLOCK_HINTS = (
+    "login", "logged-in", "cookies", "empty media", "rate-limit",
+    "rate limit", "403", "forbidden", "blocked", "checkpoint",
+)
+
+
+def _friendly_error(raw: str, platform: str) -> str:
+    msg = re.sub(r"^ERROR:\s*\[[^\]]*\]\s*[^:]*:\s*", "", (raw or "").strip())
+    low = msg.lower()
+    if "no video could be found" in low:
+        return "No video found in this post — it may be a photo or text post."
+    if "private" in low:
+        return "This post is private — it can't be grabbed."
+    if any(h in low for h in _BLOCK_HINTS):
+        return _BLOCK_MSGS.get(
+            platform,
+            "This platform is blocking web downloads right now. The free DOWNI Android app grabs it on-device.",
+        )
+    if "not available" in low or "removed" in low or "404" in low:
+        return "This post is unavailable in your region or has been removed."
+    if "unsupported url" in low:
+        return (
+            "This link isn't supported on web. TikTok, Pinterest and direct "
+            "media links work here; the DOWNI Android app handles the rest."
+        )
+    if "timed out" in low or "timeout" in low:
+        return "The platform took too long to answer — try again in a moment."
+    if len(msg) > 180:
+        msg = msg[:180].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+    return msg or "This link could not be grabbed right now."
 
 
 def _pick_muxed(info: dict):
@@ -309,6 +399,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         response_started = False
+        platform = "web"  # refined after URL parse; needed by the error handler
         try:
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length) if length else b"{}"
@@ -323,12 +414,16 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             if not _url_allowed(url):
-                self._json(400, {"ok": False, "error": "This link is not supported. Try YouTube, Instagram, TikTok, Facebook, X, Reddit, Pinterest, or a direct media link."})
+                self._json(400, {"ok": False, "error": "This link isn't supported on web. TikTok, Pinterest and direct media links work here; the DOWNI Android app handles YouTube, Instagram, Facebook & X."})
                 return
 
             if _is_youtube(url):
                 self._json(502, {"ok": False, "error": _YOUTUBE_MSG})
                 return
+
+            platform = _detect_platform(url)
+            if platform == "facebook":
+                url = _normalize_facebook(url)
 
             if _is_direct_media(url):
                 # Plain media link: proxy it as-is, no extraction needed.
@@ -405,7 +500,6 @@ class Handler(BaseHTTPRequestHandler):
                         break
 
         except Exception as exc:
-            msg = str(exc)[:350]
             if response_started:
                 # Headers/body already went out; a second HTTP response would
                 # corrupt the transfer. Dropping the connection is the only
@@ -413,7 +507,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._headers_buffer = []
                 self.close_connection = True
                 return
-            self._json(502, {"ok": False, "error": msg})
+            self._json(502, {"ok": False, "error": _friendly_error(str(exc), platform)})
 
 
 handler = Handler

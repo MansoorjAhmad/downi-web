@@ -1,0 +1,15 @@
+﻿web hardening: honest platform errors, FB link-shape fix, tikwm rate-limit retry
+
+- Raw yt-dlp errors (extractor prefixes, --cookies-from-browser CLI junk,
+  FAQ links, mid-word truncation) never reach the UI anymore — every failure
+  maps to one human sentence.
+- Instagram/Facebook/X/Reddit blocks now say so honestly and point to the
+  DOWNI Android app (same doctrine as the YouTube note).
+- Facebook modern link shapes normalized before extraction:
+  fb.watch, /share/v/, m.facebook.com, /watch/<page>/<id>/ -> /watch?v=<id>.
+- tikwm free tier is 1 req/sec shared by all web users — retry once after
+  1.3s on limit instead of failing the grab.
+- Pinterest posts now show the PINTEREST badge (was WEB).
+- README told the truth at last: app is v2.1.1, not v1.1.0; platform status
+  documented honestly.
+- Service worker cache bumped (downi-web-v2.1) so old shells get purged.
