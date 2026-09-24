@@ -42,8 +42,8 @@ def _impersonate_available() -> bool:
         return False
 
 
-def _ydl_opts() -> dict:
-    opts = {
+def _base_opts() -> dict:
+    return {
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
@@ -51,24 +51,46 @@ def _ydl_opts() -> dict:
         "socket_timeout": 20,
         "http_headers": {"User-Agent": _UA, "Accept-Language": "en-US,en;q=0.9"},
     }
-    if _impersonate_available():
+
+
+def _ydl_extract(url: str, fmt: str = None, impersonate: bool = False):
+    opts = _base_opts()
+    if fmt:
+        opts["format"] = fmt
+    if impersonate:
         opts["impersonate"] = "chrome"
-    return opts
+    with YoutubeDL(opts) as ydl:
+        return ydl.extract_info(url, download=False)
 
 
 def _extract(url: str):
-    with YoutubeDL(_ydl_opts()) as ydl:
-        return ydl.extract_info(url, download=False)
+    """Same cascade the endpoints use: impersonated attempt, then plain.
+
+    The TLS-impersonation stack has failed on this deployment before (an
+    AssertionError with an empty message), so a broken impersonation must
+    never be allowed to report a healthy engine as dead.
+    """
+    if _impersonate_available():
+        try:
+            return _ydl_extract(url, impersonate=True)
+        except Exception:
+            pass
+    return _ydl_extract(url)
 
 
 def _downloadable(url: str):
     """Metadata alone can't prove the download path works — resolve a stream."""
-    info = _extract(url)
-    with YoutubeDL({**_ydl_opts(), "format": "b/best"}) as ydl:
-        picked = ydl.extract_info(url, download=False)
+    _extract(url)
+    picked = _ydl_extract(url, fmt="best[ext=mp4][vcodec!=none]/best[vcodec!=none]/best")
     if not (picked.get("url") or picked.get("formats")):
         raise RuntimeError("no playable stream resolved")
-    return info
+
+
+def _impersonation_probe():
+    """Report the truth about TLS impersonation (informational, never fatal)."""
+    if not _impersonate_available():
+        raise RuntimeError("curl_cffi not installed")
+    _ydl_extract(_PROBES[0][1], impersonate=True)
 
 
 def _head(url: str):
@@ -132,6 +154,7 @@ class Handler(BaseHTTPRequestHandler):
                 results.append({"check": name, "ok": False, "ms": int((time.time() - t0) * 1000), "error": str(exc)[:180]})
 
         check("Internet reachability", lambda: _head("https://www.google.com/generate_204"))
+        check("TLS impersonation (optional)", _impersonation_probe)
         check("Engine download path", lambda: _downloadable(_PROBES[0][1]))
         for name, url in _PROBES[1:]:
             check(name, lambda u=url: _extract(u))
