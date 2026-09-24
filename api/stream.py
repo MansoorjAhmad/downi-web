@@ -526,7 +526,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._headers_buffer = []
                 self.close_connection = True
                 return
-            self._json(502, {"ok": False, "error": _friendly_error(str(exc), platform)})
+            self._json(502, {
+                "ok": False,
+                "error": _friendly_error(str(exc), platform),
+                "reason": type(exc).__name__,
+            })
 
 
 handler = Handler

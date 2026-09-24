@@ -425,7 +425,11 @@ class Handler(BaseHTTPRequestHandler):
             })
 
         except Exception as exc:
-            self._json(502, {"ok": False, "error": _friendly_error(str(exc), platform)})
+            self._json(502, {
+                "ok": False,
+                "error": _friendly_error(str(exc), platform),
+                "reason": type(exc).__name__,
+            })
 
 
 handler = Handler
