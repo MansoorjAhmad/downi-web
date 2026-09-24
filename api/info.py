@@ -8,6 +8,7 @@ Protected by X-Downi-Web: 1 header.
 import json
 import re
 import time
+import importlib.util
 import ipaddress
 import urllib.parse
 import urllib.request
@@ -119,6 +120,22 @@ def _direct_media_info(url: str) -> dict:
     }
 
 
+def _impersonate_opts() -> dict:
+    """TLS-impersonate Chrome when curl_cffi is installed (see requirements).
+
+    Instagram/Facebook/X frequently reject requests at the TLS-fingerprint
+    layer before the IP is even considered. yt-dlp can mirror Chrome's
+    fingerprint through curl_cffi; feature-detect so a missing wheel can
+    never break extraction for platforms that already work.
+    """
+    try:
+        if importlib.util.find_spec("curl_cffi"):
+            return {"impersonate": "chrome"}
+    except Exception:
+        pass
+    return {}
+
+
 def _get_info(url: str) -> dict:
     opts = {
         "quiet": True,
@@ -129,6 +146,7 @@ def _get_info(url: str) -> dict:
         "skip_download": True,
         "http_headers": dict(_HEADERS),
     }
+    opts.update(_impersonate_opts())
     with YoutubeDL(opts) as ydl:
         return ydl.extract_info(url, download=False)
 

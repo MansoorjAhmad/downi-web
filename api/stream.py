@@ -9,6 +9,7 @@ Falls back to a JSON { cdnUrl, filename } response for iOS Safari (caller opens 
 import json
 import re
 import time
+import importlib.util
 import ipaddress
 import urllib.parse
 import urllib.request
@@ -315,6 +316,22 @@ def _pick_muxed(info: dict):
     return None, None, {}
 
 
+def _impersonate_opts() -> dict:
+    """TLS-impersonate Chrome when curl_cffi is installed (see requirements).
+
+    Instagram/Facebook/X frequently reject requests at the TLS-fingerprint
+    layer before the IP is even considered. yt-dlp can mirror Chrome's
+    fingerprint through curl_cffi; feature-detect so a missing wheel can
+    never break extraction for platforms that already work.
+    """
+    try:
+        if importlib.util.find_spec("curl_cffi"):
+            return {"impersonate": "chrome"}
+    except Exception:
+        pass
+    return {}
+
+
 def _resolve(url: str, fmt_id: str):
     """Returns (cdn_url, ext, title, http_headers)."""
     selector = _FORMAT_SELECTORS.get(fmt_id.lower(), _FORMAT_SELECTORS["best"])
@@ -336,6 +353,7 @@ def _resolve(url: str, fmt_id: str):
             "format": sel,
             "http_headers": dict(_YDL_HEADERS),
         }
+        opts.update(_impersonate_opts())
         if extractor_args:
             opts["extractor_args"] = extractor_args
 
