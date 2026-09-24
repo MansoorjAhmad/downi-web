@@ -1,14 +1,21 @@
 """DOWNI Web — /api/stream
-POST { "url": "...", "formatId": "720" }
-→  Proxies the video/audio file with Content-Disposition so browser saves it.
+POST { "url": "...", "formatId": "720", "ios": true }
+→  Proxies the video/audio file with Content-Disposition so the browser saves it.
+   With "ios": true it answers with a signed GET downloadUrl instead, which the
+   browser can open natively (Safari → Files → Downloads, no new tab).
+GET  ?t=<signed token>
+→  Streams the resolved media file as an attachment (native downloads).
 
-Protected by X-Downi-Web: 1 header.
-Falls back to a JSON { cdnUrl, filename } response for iOS Safari (caller opens it).
+Protected by X-Downi-Web: 1 header on POST.
 """
 
 import json
 import re
 import time
+import base64
+import hashlib
+import hmac
+import os
 import importlib.util
 import ipaddress
 import urllib.parse
@@ -19,7 +26,7 @@ from yt_dlp import YoutubeDL
 
 _HDR_KEY = "X-Downi-Web"
 _HDR_VAL = "1"
-_CHUNK = 65536  # 64 KB
+_CHUNK = 262144  # 256 KB — fewer round-trips through the function
 
 # Serverless responses are buffered with hard size/duration limits — huge
 # files would die mid-transfer. Fail honestly instead.
@@ -169,6 +176,59 @@ def _twitter_resolve(url: str, fmt_id: str):
         raise RuntimeError("No downloadable stream found in X response")
     title = (tweet.get("text") or "x video").strip().replace("\n", " ")[:80] or "x video"
     return cdn_url, "mp4", title, {}
+
+
+# --- Signed download links (native iOS downloads) ---------------------------
+# Safari can't force-download a cross-origin CDN file, and an <a href> can't
+# send the POST body the proxy needs. So POST resolves the media and mints a
+# short-lived signed token carrying the resolved CDN URL, filename and needed
+# headers; the client then opens GET /api/stream?t=<token> and Safari saves the
+# file natively (Files → Downloads) — no new tab, no player, no save sheet.
+# The signature is a soft anti-hotlink signal, like the X-Downi-Web header;
+# the real guards (platform allow-list, SSRF check, size cap) already ran when
+# the token was minted.
+_SIGN_SECRET = (os.environ.get("DOWNI_SIGN_SECRET") or "downi-web-signed-link-v1").encode()
+_TOKEN_TTL = 30 * 60  # seconds
+
+
+def _b64e(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def _b64d(txt: str) -> bytes:
+    return base64.urlsafe_b64decode(txt + "=" * (-len(txt) % 4))
+
+
+def make_download_token(cdn_url: str, ext: str, filename: str, headers: dict) -> str:
+    payload = _b64e(json.dumps({
+        "u": cdn_url,
+        "e": ext,
+        "n": filename,
+        "h": headers or {},
+        "x": int(time.time()) + _TOKEN_TTL,
+    }).encode())
+    sig = _b64e(hmac.new(_SIGN_SECRET, payload.encode(), hashlib.sha256).digest())
+    return payload + "." + sig
+
+
+def parse_download_token(token: str):
+    """Returns (cdn_url, ext, filename, headers) or None when invalid/expired."""
+    try:
+        payload, sig = (token or "").split(".", 1)
+        expect = _b64e(hmac.new(_SIGN_SECRET, payload.encode(), hashlib.sha256).digest())
+        if not hmac.compare_digest(sig, expect):
+            return None
+        data = json.loads(_b64d(payload).decode())
+        if int(data.get("x") or 0) < int(time.time()):
+            return None
+        return (
+            data.get("u") or "",
+            data.get("e") or "mp4",
+            data.get("n") or "video.mp4",
+            data.get("h") or {},
+        )
+    except Exception:
+        return None
 
 
 def _sanitize_filename(name: str) -> str:
@@ -476,7 +536,79 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self._json(200, {"ok": True})
 
+    def _proxy_stream(self, cdn_url: str, ext: str, filename: str, extra_headers: dict):
+        """Stream one already-resolved media URL to the client as an attachment.
+
+        This is the native-download path: Content-Disposition makes the browser
+        (Safari included) save the file itself, so there is no new tab, no
+        player, and no client-side buffering.
+        """
+        content_type = _MIME.get(ext, "application/octet-stream")
+        req_headers = dict(_YDL_HEADERS)
+        req_headers.update(extra_headers or {})
+        req = urllib.request.Request(cdn_url, headers=req_headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            file_size = resp.headers.get("Content-Length", "")
+            if file_size and int(file_size) > _MAX_PROXY_BYTES:
+                self._json(413, {
+                    "ok": False,
+                    "error": "This video is too large to download through the web app. Try a shorter clip, or use the DOWNI Android app.",
+                })
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+            if file_size:
+                self.send_header("Content-Length", file_size)
+            self.end_headers()
+
+            written = 0
+            while True:
+                chunk = resp.read(_CHUNK)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > _MAX_PROXY_BYTES:
+                    self.close_connection = True
+                    break
+                try:
+                    self.wfile.write(chunk)
+                except (BrokenPipeError, ConnectionResetError):
+                    break
+
     def do_GET(self):
+        try:
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        except Exception:
+            qs = {}
+        token = (qs.get("t") or [""])[0]
+        if token:
+            parsed = parse_download_token(token)
+            if not parsed:
+                self._json(403, {"ok": False, "error": "This download link expired — open DOWNI and start the grab again."})
+                return
+            cdn_url, ext, filename, extra_headers = parsed
+            if not cdn_url or _is_private_host(_hostname(cdn_url)):
+                self._json(400, {"ok": False, "error": "This link is not supported."})
+                return
+            if str(cdn_url).lower().split("?")[0].endswith((".m3u8", ".mpd", ".ism")):
+                self._json(502, {"ok": False, "error": "This link only offers a streaming manifest the web proxy can't grab — the DOWNI Android app handles it on-device."})
+                return
+            try:
+                self._proxy_stream(cdn_url, ext, filename, extra_headers)
+            except Exception as exc:
+                # Headers may already be out mid-stream; a second response would
+                # corrupt the transfer, so dropping the connection is the honest
+                # signal in that case.
+                try:
+                    self._json(502, {"ok": False, "error": _friendly_error(str(exc), "web")})
+                except Exception:
+                    self._headers_buffer = []
+                    self.close_connection = True
+            return
+
         self._json(200, {"ok": True, "service": "downi-web-stream"})
 
     def do_POST(self):
@@ -540,10 +672,13 @@ class Handler(BaseHTTPRequestHandler):
             filename = f"{_sanitize_filename(title)}.{ext}"
             content_type = _MIME.get(ext, "application/octet-stream")
 
-            # iOS mode: return CDN URL for the browser to open directly
+            # Native-download mode (iOS Safari): hand back a signed GET link that
+            # answers with Content-Disposition: attachment, so the browser saves
+            # the file itself — no new tab, no player, no save sheet.
             if ios_mode:
                 self._json(200, {
                     "ok": True,
+                    "downloadUrl": make_download_token(cdn_url, ext, filename, cdn_headers),
                     "cdnUrl": cdn_url,
                     "filename": filename,
                     "ext": ext,

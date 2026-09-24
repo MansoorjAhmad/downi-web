@@ -678,35 +678,13 @@
       <p id="inspectorQualityNote" class="hidden text-[10px] mt-3 leading-relaxed" style="color:var(--muted)"></p>
 
       <div id="iosTipNotice" class="hidden mt-3 p-3 rounded-xl bg-accent-soft border border-accent-soft text-[11px] text-accent">
-        💡&nbsp;<b>iPhone users:</b> After tapping Download, if Safari plays video in browser, tap Share icon → <b>Save to Files / Photos</b>.
+        💡&nbsp;<b>iPhone:</b> Download saves straight to <b>Files → Downloads</b> — no new tab, no picker.
       </div>
 
       <button id="btnConfirmDownloadQuality" onclick="proceedSelectedQualityDownload()" class="btn-hero w-full py-4 mt-4 text-[13px] font-extrabold">
         <span id="btnConfirmDownloadText">Download</span>
       </button>
       <button onclick="closeInspector()" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400">Cancel</button>
-    </div>
-  </div>
-
-  <!-- iOS SAVE SHEET -->
-  <div id="iosSaveModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/75 backdrop-blur-md" onclick="closeIosSave()"></div>
-    <div class="absolute inset-x-0 bottom-0 sheet p-5 pb-7 max-w-xl mx-auto">
-      <div class="grabber"></div>
-      <div class="flex items-center gap-3 mt-3 mb-4">
-        <div class="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-accent" style="background:rgba(var(--accent-rgb),.12); border:1px solid rgba(var(--accent-rgb),.3)">
-          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg>
-        </div>
-        <div class="min-w-0">
-          <h3 class="text-[14px] font-extrabold text-white">Ready to save</h3>
-          <p id="iosSaveName" class="text-[10px] font-mono" style="color:var(--muted)">video.mp4</p>
-        </div>
-      </div>
-      <p class="text-[12px] leading-relaxed text-zinc-300">
-        The video opens in a new tab. Tap the <b>Share</b> icon → <b>Save to Files</b> or <b>Save Video</b> to keep it on your iPhone.
-      </p>
-      <button id="btnIosOpenCdn" onclick="openIosCdn()" class="btn-hero w-full py-4 mt-4 text-[13px] font-extrabold">Open &amp; save video</button>
-      <button onclick="closeIosSave()" class="btn w-full py-3 mt-2 text-[11px] font-bold text-zinc-400">Close</button>
     </div>
   </div>
 
@@ -1193,13 +1171,23 @@
 
         if (isIOS) {
           const data = await res.json();
-          if (!data.ok) throw new Error(data.error || 'Failed to resolve iOS link');
+          if (!data.ok) throw new Error(data.error || 'Failed to prepare the download');
+          // Native Safari download: the signed link answers with
+          // Content-Disposition: attachment, so Safari saves the file itself —
+          // straight to Files → Downloads. No new tab, no player, no save sheet.
+          const dlUrl = data.downloadUrl
+            ? ('/api/stream?t=' + encodeURIComponent(data.downloadUrl))
+            : data.cdnUrl;
+          const dl = document.createElement('a');
+          dl.href = dlUrl;
+          if (data.filename) dl.download = data.filename;
+          document.body.appendChild(dl);
+          dl.click();
+          document.body.removeChild(dl);
           job.percent = 100;
           job.done = true;
-          onJobComplete(jobId, data.filename || 'Video', 'Browser tab', url, formatId);
-          // Open from the save sheet's button, not here: Safari blocks
-          // window.open in async callbacks, but allows it on a real tap.
-          openIosSave(data.cdnUrl, data.filename);
+          onJobComplete(jobId, data.filename || 'Video', 'Files → Downloads', url, formatId);
+          showToast('Saving to Files', 'Downloads folder — no tab, no picker.', 'success');
           return;
         }
 
@@ -1708,23 +1696,9 @@
       window.open(item.url, '_blank');
     }
 
-    // ================= iOS save sheet =================
-    let pendingIosUrl = '';
-    function openIosSave(cdnUrl, filename) {
-      pendingIosUrl = cdnUrl;
-      const name = document.getElementById('iosSaveName');
-      if (name) name.innerText = filename || 'video';
-      document.getElementById('iosSaveModal')?.classList.remove('hidden');
-    }
-    function closeIosSave() {
-      document.getElementById('iosSaveModal')?.classList.add('hidden');
-    }
-    function openIosCdn() {
-      if (!pendingIosUrl) return;
-      const w = window.open(pendingIosUrl, '_blank');
-      if (!w) location.href = pendingIosUrl;  // popup still blocked → navigate
-      closeIosSave();
-    }
+    // ================= iOS =================
+    // iOS Safari now downloads natively through the signed link (see the isIOS
+    // branch in initiateDownload) — the old CDN-plus-save-sheet flow is gone.
 
     // ================= Error sheet =================
     function showErrorModal(title, message, rawDetail) {
