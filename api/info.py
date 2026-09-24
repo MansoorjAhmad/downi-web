@@ -243,6 +243,46 @@ def _tiktok_info(url: str) -> dict:
     }
 
 
+# --- X/Twitter fast-path (fxtwitter API) ------------------------------------
+# X's API lockdown broke many public extraction paths (the guest-token
+# GraphQL flow misses some native videos). fxtwitter runs its own resilient
+# scraper and hands back direct video.twimg.com MP4s — same doctrine as the
+# tikwm fast-path for TikTok. yt-dlp stays as the fallback.
+
+_TWITTER_STATUS_RE = re.compile(r"(?:twitter\.com|x\.com)/[^/]+/status/(\d+)", re.I)
+
+
+def _twitter_info(url: str) -> dict:
+    """Metadata response in the /api/info shape, or raises on failure."""
+    m = _TWITTER_STATUS_RE.search(url)
+    if not m:
+        raise RuntimeError("Unsupported URL")
+    req = urllib.request.Request(
+        f"https://api.fxtwitter.com/status/{m.group(1)}",
+        headers={"User-Agent": _TIKWM_UA, "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    tweet = data.get("tweet") or {}
+    media = tweet.get("media") or {}
+    videos = media.get("videos") or []
+    if not videos:
+        raise RuntimeError("No video could be found in this tweet")
+    author = (tweet.get("author") or {}).get("screen_name") or "X"
+    text = (tweet.get("text") or "").strip().replace("\n", " ")
+    return {
+        "ok": True,
+        "title": text[:120] or "X video",
+        "thumbnail": media.get("thumbnail_url") or "",
+        "duration": float(videos[0].get("duration") or 0),
+        "uploader": author,
+        "platform": "twitter",
+        "formats": [
+            {"id": "best", "label": "Video (No Watermark)", "badge": "MP4", "ext": "mp4"},
+        ],
+    }
+
+
 # --- Facebook URL shapes ---------------------------------------------------
 # Facebook invents a new URL shape every few months; yt-dlp only groks the
 # classics. Normalize to /watch?v=<id> where possible and expand share links.
@@ -289,10 +329,15 @@ _BLOCK_HINTS = (
 
 
 def _friendly_error(raw: str, platform: str) -> str:
+    low_raw = (raw or "").lower()
+    if "[youtube]" in low_raw or "sign in to confirm" in low_raw:
+        # The link delegated to YouTube (e.g. a tweet that embeds a YouTube
+        # card) — same policy applies as a direct YouTube link.
+        return _YOUTUBE_MSG
     msg = re.sub(r"^ERROR:\s*\[[^\]]*\]\s*[^:]*:\s*", "", (raw or "").strip())
     low = msg.lower()
     if "no video could be found" in low:
-        return "No video found in this post — it may be a photo or text post."
+        return "No video found in this post — it may be a photo, text or link post."
     if "private" in low:
         return "This post is private — it can't be grabbed."
     if any(h in low for h in _BLOCK_HINTS):
@@ -403,6 +448,13 @@ class Handler(BaseHTTPRequestHandler):
             if platform == "tiktok":
                 try:
                     self._json(200, _tiktok_info(url))
+                    return
+                except Exception:
+                    pass  # fall through to yt-dlp
+
+            if platform == "twitter":
+                try:
+                    self._json(200, _twitter_info(url))
                     return
                 except Exception:
                     pass  # fall through to yt-dlp

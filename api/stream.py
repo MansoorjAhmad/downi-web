@@ -139,6 +139,33 @@ def _tiktok_resolve(url: str, fmt_id: str):
     return stream_url, ext, f"{_sanitize_filename(title)[:50]}-{item.get('id', 'video')}", headers
 
 
+def _twitter_resolve(url: str, fmt_id: str):
+    """Returns (cdn_url, ext, title, http_headers) via fxtwitter.
+
+    X's own API often only exposes HLS variants; fxtwitter returns a direct
+    MP4 on video.twimg.com, which proxies cleanly. yt-dlp stays the fallback.
+    """
+    m = re.search(r"(?:twitter\.com|x\.com)/[^/]+/status/(\d+)", url, re.I)
+    if not m:
+        raise RuntimeError("Unsupported URL")
+    req = urllib.request.Request(
+        f"https://api.fxtwitter.com/status/{m.group(1)}",
+        headers={"User-Agent": _TIKWM_UA, "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    tweet = data.get("tweet") or {}
+    media = tweet.get("media") or {}
+    videos = media.get("videos") or []
+    if not videos:
+        raise RuntimeError("No video could be found in this tweet")
+    cdn_url = videos[0].get("url") or ""
+    if not cdn_url:
+        raise RuntimeError("No downloadable stream found in X response")
+    title = (tweet.get("text") or "x video").strip().replace("\n", " ")[:80] or "x video"
+    return cdn_url, "mp4", title, {}
+
+
 def _sanitize_filename(name: str) -> str:
     # Keep printable ASCII only: HTTP headers are latin-1, so a title with
     # emoji/curly quotes would crash Content-Disposition otherwise.
@@ -258,10 +285,15 @@ _BLOCK_HINTS = (
 
 
 def _friendly_error(raw: str, platform: str) -> str:
+    low_raw = (raw or "").lower()
+    if "[youtube]" in low_raw or "sign in to confirm" in low_raw:
+        # The link delegated to YouTube (e.g. a tweet that embeds a YouTube
+        # card) — same policy applies as a direct YouTube link.
+        return _YOUTUBE_MSG
     msg = re.sub(r"^ERROR:\s*\[[^\]]*\]\s*[^:]*:\s*", "", (raw or "").strip())
     low = msg.lower()
     if "no video could be found" in low:
-        return "No video found in this post — it may be a photo or text post."
+        return "No video found in this post — it may be a photo, text or link post."
     if "private" in low:
         return "This post is private — it can't be grabbed."
     if any(h in low for h in _BLOCK_HINTS):
@@ -454,6 +486,11 @@ class Handler(BaseHTTPRequestHandler):
             elif _is_tiktok(url):
                 try:
                     cdn_url, ext, title, cdn_headers = _tiktok_resolve(url, fmt_id)
+                except Exception:
+                    cdn_url, ext, title, cdn_headers = _resolve(url, fmt_id)  # yt-dlp fallback
+            elif platform == "twitter":
+                try:
+                    cdn_url, ext, title, cdn_headers = _twitter_resolve(url, fmt_id)
                 except Exception:
                     cdn_url, ext, title, cdn_headers = _resolve(url, fmt_id)  # yt-dlp fallback
             else:
