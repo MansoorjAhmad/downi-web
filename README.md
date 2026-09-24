@@ -11,8 +11,8 @@ Vanilla JS + Tailwind (fully local — no CDN), an installable PWA with an offli
 
 ## 🚀 Features
 
-- **Works great on web**: TikTok (HD, no watermark, fast mirror path with rate-limit retry), Pinterest + any public **direct media link** (HTTPS). Reddit and more ride yt-dlp's best-effort path.
-- **Honest about the rest**: YouTube, Instagram, Facebook and X block datacenter-IP extraction. The web app says so in one plain sentence — never raw extractor logs — and points you to the free **DOWNI Android app**, which grabs them fully on-device. (Client spoofing is permanently banned: see `READ_THIS_BEFORE_UPGRADE.md` in the Android repo.)
+- **Every major platform, server-side**: TikTok (HD, no watermark, fast mirror path with rate-limit retry), Instagram (public reels & posts), Facebook (public videos, share links normalized), X/Twitter (fast-path mirror → direct MP4), Pinterest, plus any public **direct media link** (HTTPS).
+- **Honest about limits**: YouTube isn't available on web (client spoofing is permanently banned — see `READ_THIS_BEFORE_UPGRADE.md` in the Android repo; the free **DOWNI Android app** handles YouTube on-device). Instagram/Facebook/X posts that are private or login-walled can't be grabbed by any anonymous tool — you'll get one plain sentence saying so, never raw extractor logs.
 - **Facebook link-shapes**: modern share links (`fb.watch`, `/share/v/…`, `m.facebook.com`, `/watch/<page>/<id>/`) are normalized to the canonical form before extraction.
 - **Quality picker**: up to 1080p where a platform serves a muxed stream, plus 720p / 480p / audio-only.
 - **Standard downloads**: files go straight to the browser's default download folder — no save dialog, no folder picking, every browser. A dedicated save sheet handles iOS.

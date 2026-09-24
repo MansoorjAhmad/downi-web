@@ -271,16 +271,17 @@ def _normalize_facebook(url: str) -> str:
     return u
 
 
-_BLOCK_MSGS = {
-    "instagram": "Instagram is blocking web downloads right now. The free DOWNI Android app grabs Instagram on-device — no blocks.",
-    "facebook": "Facebook is blocking web downloads right now. The free DOWNI Android app grabs Facebook videos on-device.",
-    "twitter": "X is fighting web downloads right now. The free DOWNI Android app grabs it on-device.",
-    "reddit": "Reddit is fighting web downloads right now. The free DOWNI Android app grabs it on-device.",
-}
-_BLOCK_HINTS = (
+# Public posts on every supported platform extract server-side — the failures
+# below are per-post, not per-platform: login walls, private/deleted posts,
+# region locks. Honest wording, and never "blocked" for a whole platform.
+_LOGIN_WALL_MSG = (
+    "This post is private or needs a login to view — it can't be grabbed. "
+    "Public posts and reels work fine."
+)
+_LOGIN_WALL_HINTS = (
     "login", "logged-in", "cookies", "empty media", "rate-limit",
     "rate limit", "403", "forbidden", "blocked", "checkpoint",
-    "cannot parse data",
+    "cannot parse data", "only available for registered users",
 )
 
 
@@ -296,11 +297,10 @@ def _friendly_error(raw: str, platform: str) -> str:
         return "No video found in this post — it may be a photo, text or link post."
     if "private" in low:
         return "This post is private — it can't be grabbed."
-    if any(h in low for h in _BLOCK_HINTS):
-        return _BLOCK_MSGS.get(
-            platform,
-            "This platform is blocking web downloads right now. The free DOWNI Android app grabs it on-device.",
-        )
+    if any(h in low for h in _LOGIN_WALL_HINTS):
+        return _LOGIN_WALL_MSG
+    if "suspended" in low or "domain not found" in low:
+        return "This account or post is no longer available."
     if "not available" in low or "removed" in low or "404" in low:
         return "This post is unavailable in your region or has been removed."
     if "unsupported url" in low:
@@ -343,6 +343,21 @@ def _pick_muxed(info: dict):
     ]
     if video_only:
         best = max(video_only, key=lambda f: (f.get("height") or 0, f.get("tbr") or 0))
+        return best["url"], best.get("ext") or "mp4", best.get("http_headers") or {}
+
+    # Tier 3: some extractors leave codec metadata empty or "unknown"
+    # (Facebook's single progressive "sd" file, for example). A playable URL
+    # beats a hard failure — prefer video-looking containers, then bitrate.
+    fallback = [f for f in (info.get("formats") or []) if f.get("url")]
+    if fallback:
+        best = max(
+            fallback,
+            key=lambda f: (
+                str(f.get("ext") or "").lower() in ("mp4", "webm", "m4v"),
+                f.get("height") or 0,
+                f.get("tbr") or 0,
+            ),
+        )
         return best["url"], best.get("ext") or "mp4", best.get("http_headers") or {}
 
     return None, None, {}
