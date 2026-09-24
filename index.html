@@ -405,17 +405,6 @@
           </button>
         </div>
 
-        <!-- Share-target hint (APK DowniDrop parity) -->
-        <div class="card p-4 flex items-center gap-3 fade-in">
-          <div class="w-10 h-10 rounded-2xl bg-accent-soft border border-accent-soft flex items-center justify-center text-accent flex-shrink-0">
-            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7 8l5-5 5 5"/></svg>
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-[12px] font-extrabold text-white">Share to DOWNI</p>
-            <p class="text-[10px] mt-0.5" style="color:var(--muted)">Installed on <b>Android</b>? Share any link → DOWNI and it grabs instantly. On iPhone, copy the link and open DOWNI.</p>
-          </div>
-        </div>
-
         <!-- Active downloads -->
         <div id="activeDownloadsWrap" class="hidden space-y-3">
           <div class="flex items-center justify-between px-1">
@@ -568,13 +557,6 @@
               <p class="text-[10px] mt-0.5" style="color:var(--muted)">Banner when a video link is copied</p>
             </div>
             <input type="checkbox" id="chkClipboard" checked onchange="toggleClipboardDetect(this.checked)" class="w-5 h-5">
-          </div>
-          <div class="py-3 border-t border-white/5">
-            <p class="text-[12px] font-bold text-zinc-200">Share to DOWNI</p>
-            <p class="text-[10px] mt-0.5" style="color:var(--muted)">Android (installed app): Share → DOWNI grabs instantly. iPhone: Safari can't register share targets — copy the link instead.</p>
-            <div class="flex gap-2 mt-2.5">
-              <div class="chip on flex-1 py-2 text-[10px] font-bold text-center">⚡ Web Share Target</div>
-            </div>
           </div>
         </div>
 
@@ -1990,26 +1972,6 @@
     }
 
     // ================= v2.0: share-target, drag & drop, install prompt =================
-    function setupShareTarget() {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const shared = params.get('url') || params.get('text') || params.get('title') || '';
-        const clean = shared ? extractUrl(shared) : '';
-        if (clean) {
-          document.getElementById('inputManualUrl').value = clean;
-          handleUrlInputChanged();
-          currentInspectedUrl = clean;
-          window.history.replaceState({}, '', '/');
-          // APK DowniDrop parity: a shared link grabs instantly at best quality.
-          // The toast keeps a one-tap escape hatch into the quality picker.
-          initiateDownload(clean, 'best');
-          showToast('Shared link', 'Grabbing best quality now.', 'success', 'Quality', () => {
-            handleInspectAndOpenModal(clean);
-          });
-        }
-      } catch (e) {}
-    }
-
     function setupDragAndDrop() {
       ['dragover', 'dragenter'].forEach(evt => {
         document.addEventListener(evt, (e) => { e.preventDefault(); }, { passive: false });
@@ -2071,7 +2033,6 @@
       refreshVault();
       checkEngineHealth();
       refreshApkVersionLabel();
-      setupShareTarget();
       setupDragAndDrop();
       setupInstallPrompt();
       setTimeout(checkClipboard, 800);

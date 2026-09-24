@@ -27,7 +27,7 @@ The web app is a true sibling of the Android app, not a lookalike:
 - **Same engine** — yt-dlp 2026.8.19 driven by the Android app's lane cascade (see `downloader.py` in the mobile repo), with one server-side twist: lanes prefer progressive HTTP files and refuse HLS manifests, because the phone downloads HLS natively while this proxy streams a single URL.
 - **Same honest errors** — one plain sentence per failure (private / login-walled / removed / no video), never raw extractor logs.
 - **`/api/diagnose`** mirrors the app's `diagnose()`: reachability, engine download path, Instagram/Facebook extraction, TikTok mirror, X mirror, and an honest *optional* TLS-impersonation probe.
-- **Web-only by necessity** — standard browser downloads (straight to the default folder, no picker), the iOS save sheet, PWA install + share target, and no APK self-updater (a browser can't install APKs).
+- **Web-only by necessity** — standard browser downloads (straight to the default folder, no picker), the iOS save sheet, PWA install, and no APK self-updater (a browser can't install APKs). DowniDrop (Android's share-to-DOWNI) stays an app-only feature.
 
 ## 🛡️ Security & abuse limits
 

@@ -1,7 +1,9 @@
 /* DOWNI Web service worker — offline app shell.
  * Navigations: network-first (fresh deploys win), cached shell as fallback.
- * Static assets: cache-first. /api/* always goes to the network. */
-const CACHE = 'downi-web-v2.1';
+ * Static assets: cache-first. /api/* always goes to the network.
+ * Cache key bumped whenever the shell changes so installed PWAs purge the
+ * previous manifest/shell (v2.2: share_target removed with DowniDrop). */
+const CACHE = 'downi-web-v2.2';
 const SHELL = [
   '/',
   '/index.html',
