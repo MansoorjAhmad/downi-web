@@ -263,13 +263,23 @@
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 4px; }
 
     input, input:focus { outline: none; }
+
+    /* Toast progress line + success pulse (APK parity) */
+    .toast-line { position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--accent); transform-origin: left center; transform: scaleX(0); opacity: .9; }
+    .toast-line.run { animation: toastLine 3.5s linear both; }
+    @keyframes toastLine { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+    .pulse-ok { animation: pulseOk .6s cubic-bezier(.16,1,.3,1); }
+    @keyframes pulseOk { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,.5); } 100% { box-shadow: 0 0 0 14px rgba(52,211,153,0); } }
+
+    /* AMOLED true-black (APK parity) */
+    :root.amoled { --bg: #000000; --surface: #07090F; --surface-2: #0C0F16; }
   </style>
 </head>
 <body class="min-h-full flex flex-col overflow-x-hidden select-none">
 
   <!-- TOAST -->
   <div id="appToast" class="fixed top-3 inset-x-4 z-50 transition-all duration-300 ease-out -translate-y-28 opacity-0 pointer-events-none flex justify-center">
-    <div class="max-w-md w-full py-3 px-4 rounded-2xl dock flex items-center gap-3 pointer-events-auto">
+    <div class="max-w-md w-full py-3 px-4 pb-4 rounded-2xl dock relative overflow-hidden flex items-center gap-3 pointer-events-auto">
       <div id="toastIcon" class="w-9 h-9 rounded-xl bg-accent-soft border border-accent-soft flex items-center justify-center text-sm font-bold text-accent">
         <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
       </div>
@@ -277,9 +287,11 @@
         <p id="toastTitle" class="text-[13px] font-extrabold text-white truncate">DOWNI</p>
         <p id="toastMsg" class="text-[11px] text-zinc-400 truncate">Notification</p>
       </div>
+      <button id="toastAction" class="hidden text-[10px] font-extrabold text-accent px-2 py-1" onclick="handleToastAction()">Undo</button>
       <button onclick="hideToast()" class="text-zinc-500 hover:text-white px-2 py-1">
         <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
+      <div id="toastLine" class="toast-line"></div>
     </div>
   </div>
 
@@ -317,9 +329,7 @@
         <!-- Clipboard banner -->
         <div id="clipboardBanner" class="hidden card card-accent p-4 flex items-center justify-between gap-3 fade-in">
           <div class="flex items-center gap-3 min-w-0">
-            <div class="w-9 h-9 rounded-xl bg-accent-soft border border-accent-soft flex items-center justify-center text-accent flex-shrink-0">
-              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/></svg>
-            </div>
+            <div class="w-9 h-9 rounded-xl bg-accent-soft border border-accent-soft flex items-center justify-center text-accent flex-shrink-0 overflow-hidden relative"><span id="clipboardIcon"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/></svg></span><img id="clipboardThumb" src="" alt="" class="hidden absolute inset-0 w-full h-full object-cover"></div>
             <div class="min-w-0">
               <p class="text-[10px] uppercase font-extrabold tracking-widest text-accent">Link detected</p>
               <p id="clipboardUrlText" class="text-xs font-mono text-zinc-300 truncate max-w-[170px] sm:max-w-xs">https://…</p>
@@ -384,6 +394,15 @@
             <span class="chip px-2.5 py-1 text-[9px] font-bold text-zinc-400" title="YouTube blocks server-side downloads — the free DOWNI Android app handles it fully on-device">YouTube → app</span>
           </div>
           <p class="text-[9px] text-center leading-relaxed" style="color:var(--muted)">Public posts work here on every platform. Private or login-walled posts can't be grabbed without a logged-in session — that's a platform rule, not a DOWNI limit.</p>
+
+          <button id="lastGrabChip" onclick="handleLastGrabClick()" class="hidden w-full btn mt-1 px-4 py-2.5 text-[10px] font-mono flex items-center gap-2">
+            <span style="color:var(--muted)">Last:</span>
+            <span id="lastGrabText" class="truncate flex-1 text-left text-zinc-200"></span>
+            <span class="text-accent font-extrabold flex items-center gap-1">
+              <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>
+              re-grab
+            </span>
+          </button>
         </div>
 
         <!-- Active downloads -->
@@ -455,6 +474,19 @@
           <button id="vaultChipAll" onclick="setVaultFilter('all')" class="chip on px-4 py-1.5 text-[10px] font-extrabold">ALL</button>
           <button id="vaultChipVideo" onclick="setVaultFilter('video')" class="chip px-4 py-1.5 text-[10px] font-extrabold">VIDEO</button>
           <button id="vaultChipAudio" onclick="setVaultFilter('audio')" class="chip px-4 py-1.5 text-[10px] font-extrabold">AUDIO</button>
+          <button id="btnVaultLayout" onclick="toggleVaultLayout()" class="btn ml-auto px-3 py-1.5 text-[10px] font-bold text-zinc-300">List</button>
+        </div>
+
+        <input id="vaultSearch" type="text" placeholder="Search your media…" oninput="onVaultSearch(this.value)"
+          class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-2.5 text-[12px] text-white placeholder-zinc-500 font-mono transition">
+
+        <div class="flex items-center gap-2">
+          <select id="vaultSort" onchange="onVaultSort(this.value)" class="flex-1 bg-black/40 border border-white/10 rounded-2xl px-3 py-2.5 text-[11px] font-bold text-zinc-300">
+            <option value="new">Newest first</option>
+            <option value="old">Oldest first</option>
+            <option value="name">Name (A–Z)</option>
+          </select>
+          <span id="vaultCountText" class="text-[10px] font-mono" style="color:var(--muted)"></span>
         </div>
 
         <div id="vaultMediaGrid" class="grid grid-cols-2 gap-3"></div>
@@ -495,6 +527,25 @@
             </div>
             <input type="checkbox" id="chkLightTheme" onchange="applyTheme(this.checked ? 'light' : 'dark')" class="w-5 h-5">
           </div>
+          <div class="flex items-center justify-between py-3 border-t border-white/5">
+            <div>
+              <p class="text-[12px] font-bold text-zinc-200">Accent color</p>
+              <p class="text-[10px] mt-0.5" style="color:var(--muted)">Pick your DOWNI glow</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="setAccent('cyan')" class="w-7 h-7 rounded-full border border-white/20" style="background:#22D3EE" title="Cyan"></button>
+              <button onclick="setAccent('violet')" class="w-7 h-7 rounded-full border border-white/20" style="background:#8B5CF6" title="Violet"></button>
+              <button onclick="setAccent('emerald')" class="w-7 h-7 rounded-full border border-white/20" style="background:#10B981" title="Emerald"></button>
+              <button onclick="setAccent('rose')" class="w-7 h-7 rounded-full border border-white/20" style="background:#FB7185" title="Rose"></button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between py-3 border-t border-white/5">
+            <div>
+              <p class="text-[12px] font-bold text-zinc-200">AMOLED black</p>
+              <p class="text-[10px] mt-0.5" style="color:var(--muted)">True black — deeper on OLED screens</p>
+            </div>
+            <input type="checkbox" id="chkAmoled" onchange="setAmoled(this.checked)" class="w-5 h-5">
+          </div>
         </div>
 
         <!-- Engine Status -->
@@ -511,18 +562,30 @@
             </div>
             <span id="engineHealthBadge" class="chip px-3 py-1 text-[9px] font-mono font-bold text-emerald-400 border-emerald-400/30">ONLINE</span>
           </div>
+          <button onclick="checkEngineHealth()" class="btn w-full py-2.5 text-[11px] font-bold text-zinc-300">Verify engine health</button>
+
+          <div class="border-t border-white/5 pt-3 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-[12px] font-bold text-zinc-200">Network diagnostics</p>
+                <p class="text-[10px] mt-0.5" style="color:var(--muted)">Finds exactly what blocks extraction</p>
+              </div>
+              <button id="btnDiagnose" onclick="runDiagnostics()" class="btn-hero px-4 py-2.5 text-[11px] font-extrabold">Run</button>
+            </div>
+            <div id="diagnosticsResults" class="hidden space-y-1.5"></div>
+          </div>
         </div>
 
         <!-- About -->
         <div class="card p-4 space-y-1">
           <p class="text-[12px] font-extrabold text-white px-1 pb-2">About</p>
-          <div class="flex items-center justify-between py-2.5 border-t border-white/5">
+          <div class="flex items-center justify-between py-2.5 border-t border-white/5 cursor-pointer" onclick="copyAppVersion()" title="Tap to copy">
             <span class="text-[11px]" style="color:var(--muted)">App</span>
             <span class="text-[12px] font-bold text-zinc-200">DOWNI Web <span id="aboutVersion" class="font-mono text-[10px] text-zinc-400"></span></span>
           </div>
           <div class="flex items-center justify-between py-2.5 border-t border-white/5">
             <span class="text-[11px]" style="color:var(--muted)">Engine</span>
-            <span class="text-[10px] font-mono text-zinc-300">yt-dlp (Python 3.11)</span>
+            <span class="text-[10px] font-mono text-zinc-300" id="aboutEngine">yt-dlp 2026.8.19</span>
           </div>
           <div class="flex items-center justify-between py-2.5 border-t border-white/5">
             <span class="text-[11px]" style="color:var(--muted)">Developer</span>
@@ -593,6 +656,14 @@
       <div id="inspectorQualitiesList" class="space-y-2">
         <div class="skel h-14"></div><div class="skel h-14"></div><div class="skel h-14"></div>
       </div>
+      <div id="playlistBanner" class="hidden card-accent card p-3 flex items-center justify-between gap-2 mt-3">
+        <div class="min-w-0">
+          <p class="text-[11px] font-extrabold text-white"><span id="playlistCount">0</span> videos in this playlist</p>
+          <p class="text-[9px] font-mono" style="color:var(--muted)">Batch mode — one tap grabs them all</p>
+        </div>
+        <button onclick="grabAllPlaylist()" class="btn-hero px-3 py-2 text-[10px] font-extrabold flex-shrink-0">Grab all</button>
+      </div>
+      <p id="inspectorQualityNote" class="hidden text-[10px] mt-3 leading-relaxed" style="color:var(--muted)"></p>
 
       <div id="iosTipNotice" class="hidden mt-3 p-3 rounded-xl bg-accent-soft border border-accent-soft text-[11px] text-accent">
         💡&nbsp;<b>iPhone users:</b> After tapping Download, if Safari plays video in browser, tap Share icon → <b>Save to Files / Photos</b>.
@@ -636,7 +707,7 @@
         <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-lg font-bold" style="background:rgba(251,113,133,.12); border:1px solid rgba(251,113,133,.3); color:var(--bad)">!</div>
         <div class="min-w-0">
           <h3 class="text-[14px] font-extrabold text-white" id="errorModalTitle">Download stopped</h3>
-          <p class="text-[10px]" style="color:var(--muted)">DOWNI engine</p>
+          <p class="text-[10px]" style="color:var(--muted)" id="errorModalSubtitle">DOWNI engine</p>
         </div>
       </div>
       <p id="errorModalMessage" class="text-[12px] leading-relaxed text-zinc-300">Could not extract video.</p>
@@ -651,6 +722,38 @@
     </div>
   </div>
 
+  <!-- VAULT PLAYER (full-screen, in-app — APK parity) -->
+  <div id="playerModal" class="fixed inset-0 z-[60] hidden bg-black">
+    <video id="playerVideo" class="absolute inset-0 w-full h-full object-contain" playsinline></video>
+    <p id="playerTitle" class="absolute top-4 left-4 right-16 text-[12px] font-bold text-white truncate z-10">Media</p>
+    <div id="playerRipple" class="absolute inset-0 z-10 pointer-events-none flex items-center justify-center opacity-0 transition-opacity duration-200">
+      <span id="playerRippleText" class="px-4 py-2 rounded-2xl bg-black/70 text-white text-[13px] font-extrabold font-mono">+10s</span>
+    </div>
+    <button onclick="closePlayer()" class="absolute top-3 right-3 w-10 h-10 rounded-2xl bg-white/10 border border-white/15 text-white flex items-center justify-center z-10">
+      <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <div id="playerBar" class="absolute bottom-0 inset-x-0 p-4 pb-7 z-10 space-y-2" style="background:linear-gradient(to top, rgba(0,0,0,.88), transparent)">
+      <div id="playerSeek" class="bar cursor-pointer" onclick="seekPlayer(event)"><div style="width:0%"></div></div>
+      <div class="flex items-center justify-between text-[10px] font-mono text-white/80">
+        <span id="playerTime">0:00</span>
+        <span id="playerDur">0:00</span>
+      </div>
+      <div class="flex items-center justify-center gap-6 pt-1">
+        <button onclick="skipPlayer(-10)" class="btn w-11 h-11 text-white text-[10px] font-bold">−10s</button>
+        <button id="playerPlayBtn" onclick="togglePlay()" class="w-14 h-14 rounded-full btn-hero flex items-center justify-center">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M7 4.5v15l13-7.5-13-7.5z"/></svg>
+        </button>
+        <button onclick="skipPlayer(10)" class="btn w-11 h-11 text-white text-[10px] font-bold">+10s</button>
+        <button id="btnPlayerSpeed" onclick="cyclePlayerSpeed()" class="btn px-3 h-11 text-white text-[11px] font-bold">1×</button>
+      </div>
+      <div class="flex items-center justify-center gap-2.5 pt-1">
+        <button onclick="playerPrev()" class="btn px-3 py-2 text-[10px] font-bold text-white">← Prev</button>
+        <button onclick="openExternalPlayer()" class="btn px-3 py-2 text-[10px] font-bold text-accent">Open external</button>
+        <button onclick="playerNext()" class="btn px-3 py-2 text-[10px] font-bold text-white">Next →</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const GITHUB_REPO = 'MansoorjAhmad/Downi';
     const WEB_VERSION = '2.1.1';
@@ -658,6 +761,7 @@
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     let currentTab = 'grab';
+    let inspectedPlaylist = [];
     let currentInspectedUrl = '';
     let selectedInspectorQuality = 'best';
     let inspectedFormats = [];
@@ -702,9 +806,15 @@
 
     // ================= Toast =================
     let toastTimer = null;
-    function showToast(title, msg, type = 'info') {
+    let toastActionFn = null;
+    function showToast(title, msg, type = 'info', actionLabel, actionFn) {
       document.getElementById('toastTitle').innerText = title;
       document.getElementById('toastMsg').innerText = msg;
+      const act = document.getElementById('toastAction');
+      if (act) {
+        if (actionLabel && actionFn) { act.innerText = actionLabel; act.classList.remove('hidden'); toastActionFn = actionFn; }
+        else { act.classList.add('hidden'); toastActionFn = null; }
+      }
       const icon = document.getElementById('toastIcon');
       const SVG = {
         success: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
@@ -724,10 +834,20 @@
       const toast = document.getElementById('appToast');
       toast.classList.remove('-translate-y-28', 'opacity-0');
       toast.classList.add('translate-y-0', 'opacity-100');
+      // Restart the auto-dismiss progress line + success pulse on the icon (APK parity).
+      const line = document.getElementById('toastLine');
+      if (line) { line.classList.remove('run'); void line.offsetWidth; line.classList.add('run'); }
+      if (type === 'success') { icon.classList.remove('pulse-ok'); void icon.offsetWidth; icon.classList.add('pulse-ok'); }
       // One timer per toast — a fresh toast restarts the clock instead of
       // being murdered early by the previous toast's timer (W5).
       clearTimeout(toastTimer);
       toastTimer = setTimeout(hideToast, 3500);
+    }
+    function handleToastAction() {
+      const fn = toastActionFn;
+      toastActionFn = null;
+      hideToast();
+      if (fn) fn();
     }
     function hideToast() {
       clearTimeout(toastTimer);
@@ -748,9 +868,34 @@
             detectedClipboardUrl = clean;
             document.getElementById('clipboardUrlText').innerText = clean;
             document.getElementById('clipboardBanner')?.classList.remove('hidden');
+            // APK parity: swap the clipboard glyph for the video's own thumbnail
+            // once the engine answers — icon returns if there is no thumbnail.
+            fetchClipboardThumb(clean);
           }
         }
       } catch (e) {}
+    }
+
+    function fetchClipboardThumb(url) {
+      const img = document.getElementById('clipboardThumb');
+      const icon = document.getElementById('clipboardIcon');
+      if (!img || !icon) return;
+      img.classList.add('hidden');
+      icon.classList.remove('hidden');
+      fetch('/api/info', {
+        method: 'POST',
+        headers: API_HDR,
+        body: JSON.stringify({ url: url }),
+      })
+        .then(r => r.json())
+        .then(info => {
+          if (info && info.thumbnail && detectedClipboardUrl === url && img) {
+            img.src = info.thumbnail;
+            img.classList.remove('hidden');
+            icon.classList.add('hidden');
+          }
+        })
+        .catch(() => {});
     }
 
     function handleGrabClipboardLink() {
@@ -853,6 +998,11 @@
       document.getElementById('inspectorTitle').innerText = 'Scanning qualities…';
       document.getElementById('inspectorUploader').innerText = '';
       document.getElementById('inspectorQualitiesList').innerHTML = '<div class="skel h-14"></div><div class="skel h-14"></div><div class="skel h-14"></div>';
+      // Fresh scan: clear the quality note + playlist banner from the last link.
+      inspectedPlaylist = [];
+      document.getElementById('playlistBanner')?.classList.add('hidden');
+      const noteReset = document.getElementById('inspectorQualityNote');
+      if (noteReset) { noteReset.innerText = ''; noteReset.classList.add('hidden'); }
       if (isIOS) document.getElementById('iosTipNotice')?.classList.remove('hidden');
       document.getElementById('inspectorModal')?.classList.remove('hidden');
 
@@ -872,6 +1022,22 @@
         document.getElementById('inspectorPlatformBadge').innerText = (info.platform || 'video').toUpperCase();
         inspectedFormats = info.formats || [];
         renderInspectorQualities(inspectedFormats);
+
+        // Quality note (APK parity) — the engine may explain a lane trade-off.
+        const noteEl = document.getElementById('inspectorQualityNote');
+        if (noteEl) {
+          if (info.note) { noteEl.innerText = info.note; noteEl.classList.remove('hidden'); }
+          else { noteEl.innerText = ''; noteEl.classList.add('hidden'); }
+        }
+
+        // Playlist banner (APK parity) — shown only when the engine reports entries.
+        const pb = document.getElementById('playlistBanner');
+        const pc = document.getElementById('playlistCount');
+        inspectedPlaylist = Array.isArray(info.playlist) ? info.playlist : [];
+        if (pb && pc) {
+          if (inspectedPlaylist.length) { pc.innerText = String(inspectedPlaylist.length); pb.classList.remove('hidden'); }
+          else { pb.classList.add('hidden'); }
+        }
       } catch (e) {
         closeInspector();
         showToast('Inspect failed', e?.message || 'Check the link and try again.', 'error');
@@ -936,6 +1102,25 @@
     }
     function closeInspector() {
       document.getElementById('inspectorModal')?.classList.add('hidden');
+    }
+
+    // ---- Playlist batch grab (APK parity) --------------------------------
+    // Serially queues every entry the engine reported, one quality for all.
+    async function grabAllPlaylist() {
+      if (!inspectedPlaylist.length) return;
+      const items = inspectedPlaylist.slice();
+      const quality = selectedInspectorQuality || 'best';
+      closeInspector();
+      let queued = 0;
+      for (const entry of items) {
+        const u = entry && (entry.url || entry.webpage_url);
+        if (!u) continue;
+        initiateDownload(u, quality);
+        queued++;
+        // Gentle stagger: the serverless proxy handles one stream at a time.
+        await new Promise(r => setTimeout(r, 500));
+      }
+      if (queued) showToast('Batch started', queued + ' videos queued — they save one after another.', 'success');
     }
 
     // ================= Download Pipeline =================
@@ -1041,7 +1226,10 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        // Hand the blob to the session player registry (bounded, oldest revoked)
+        // so the Vault can replay this grab in-app — the registry owns the URL's
+        // lifetime now instead of a fixed revoke timer.
+        registerMediaBlob(filename, blobUrl);
 
         job.percent = 100;
         job.done = true;
@@ -1077,24 +1265,38 @@
         formatId: formatId || 'best'
       });
       saveHistory();
+      updateLastGrabChip();
       refreshVault();
       setTimeout(() => { if (activeJobs.size === 0) document.getElementById('activeDownloadsWrap')?.classList.add('hidden'); }, 1200);
     }
 
     function onDownloadError(errStr, url, formatId) {
       currentRawError = errStr;
-      let friendly = "The media stream could not be downloaded. The video may be private, restricted, or blocked.";
       const lower = (errStr || "").toLowerCase();
+      // The engine's own sentences are already honest and specific (login wall,
+      // private post, region lock) — show them verbatim. Only raw/technical
+      // text gets a friendly rewrite here.
+      const looksFriendly = !!(errStr || "").trim()
+        && !lower.includes('error:')
+        && !lower.includes('traceback')
+        && errStr.length <= 220;
+      let friendly = looksFriendly
+        ? errStr
+        : "The media stream could not be downloaded. Try again in a moment.";
 
-      if (lower.includes("youtube isn't supported")) {
-        friendly = "YouTube isn't supported on web yet. Use the DOWNI Android app for YouTube downloads.";
-      } else if (lower.includes("private") || lower.includes("login") || lower.includes("account")) {
-        friendly = "This video requires account access or is private.";
-      } else if (lower.includes("timeout") || lower.includes("network")) {
-        friendly = "Connection timed out. Check your internet connection.";
-      } else if (lower.includes("unsupported") || lower.includes("format")) {
-        friendly = "This format is not available for this link.";
+      if (!looksFriendly) {
+        if (lower.includes("youtube isn't supported")) {
+          friendly = "YouTube isn't supported on web yet. Use the DOWNI Android app for YouTube downloads.";
+        } else if (lower.includes("private") || lower.includes("login")) {
+          friendly = "This post is private or needs a login to view — it can't be grabbed. Public posts and reels work fine.";
+        } else if (lower.includes("timeout") || lower.includes("network")) {
+          friendly = "Connection timed out. Check your internet connection.";
+        } else if (lower.includes("unsupported") || lower.includes("format")) {
+          friendly = "This format is not available for this link.";
+        }
       }
+      const sub = document.getElementById('errorModalSubtitle');
+      if (sub) sub.innerText = 'Server engine · ' + (formatId === 'audio' ? 'audio' : 'video');
       showErrorModal('Download stopped', friendly, errStr);
     }
 
@@ -1204,13 +1406,27 @@
     }
 
     function clearCompletedHistory() {
+      const previous = downloadsHistory.slice();
+      const prevCompleted = completedCount;
+      const prevBytes = grabbedBytes;
       downloadsHistory = [];
       completedCount = 0;
       grabbedBytes = 0;
       saveHistory();
       renderQueueTab();
       refreshVault();
-      showToast('History cleared', 'All records removed.', 'info');
+      updateLastGrabChip();
+      // Undo lives in the toast action (APK parity).
+      showToast('History cleared', 'All records removed.', 'info', 'Undo', () => {
+        downloadsHistory = previous;
+        completedCount = prevCompleted;
+        grabbedBytes = prevBytes;
+        saveHistory();
+        renderQueueTab();
+        refreshVault();
+        updateLastGrabChip();
+        showToast('Restored', 'Your download history is back.', 'success');
+      });
     }
 
     // ================= Vault =================
@@ -1234,6 +1450,20 @@
       if (vaultFilter === 'video') items = items.filter(e => e.item.formatId !== 'audio');
       if (vaultFilter === 'audio') items = items.filter(e => e.item.formatId === 'audio');
 
+      // Vault controls (APK parity): search + sort + honest count.
+      if (vaultSearchQuery) {
+        const q = vaultSearchQuery.toLowerCase();
+        items = items.filter(e => (e.item.title || '').toLowerCase().includes(q));
+      }
+      if (vaultSortMode === 'name') {
+        items = items.slice().sort((a, b) => (a.item.title || '').localeCompare(b.item.title || ''));
+      } else if (vaultSortMode === 'old') {
+        items = items.slice().reverse();
+      }
+      const countEl = document.getElementById('vaultCountText');
+      if (countEl) countEl.innerText = items.length + ' item' + (items.length === 1 ? '' : 's');
+      grid.className = vaultLayout === 'list' ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-2 gap-3';
+
       if (items.length === 0) {
         grid.innerHTML = `
           <div class="col-span-2 card p-10 text-center fade-in">
@@ -1247,17 +1477,18 @@
 
       grid.innerHTML = items.map(({ item, idx }) => `
         <div class="card overflow-hidden fade-in">
-          <div class="aspect-square bg-black/50 relative flex items-center justify-center overflow-hidden ${item.url ? 'cursor-pointer' : ''}" ${item.url ? `onclick="redownloadVaultItem(${idx})" title="Tap to grab again"` : ''}>
+          <div class="aspect-square bg-black/50 relative flex items-center justify-center overflow-hidden ${item.url ? 'cursor-pointer' : ''}" ${item.url ? `onclick="openVaultItem(${idx})" title="Tap to play or grab again"` : ''}>
             <div class="text-center">
               <div class="text-3xl mb-1">${item.formatId === 'audio' ? '🎵' : '🎬'}</div>
               <p class="text-[8px] font-mono" style="color:var(--muted)">SAVED</p>
             </div>
             <div class="absolute inset-x-0 bottom-0 h-10" style="background:linear-gradient(to top, rgba(0,0,0,.65), transparent)"></div>
           </div>
-          <div class="p-3 space-y-1 ${item.url ? 'cursor-pointer' : ''}" ${item.url ? `onclick="redownloadVaultItem(${idx})" title="Tap to grab again"` : ''}>
+          <div class="p-3 space-y-1 ${item.url ? 'cursor-pointer' : ''}" ${item.url ? `onclick="openVaultItem(${idx})" title="Tap to play or grab again"` : ''}>
             <h4 class="text-[11px] font-bold text-white truncate" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h4>
             <p class="text-[9px] font-mono truncate" style="color:var(--muted)">${escapeHtml(item.date)}</p>
             <div class="flex gap-1.5 pt-1.5">
+              ${playerQueueHas(item.title) ? `<button onclick="event.stopPropagation();openVaultItem(${idx})" class="btn flex-1 py-1.5 text-[10px] font-bold flex items-center justify-center gap-1" style="color:var(--ok)">▶ Play</button>` : ''}
               ${item.url ? `<button onclick="event.stopPropagation();redownloadVaultItem(${idx})" class="btn flex-1 py-1.5 text-[10px] font-bold text-accent flex items-center justify-center gap-1"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>Again</button>` : ''}
               <button onclick="event.stopPropagation();removeVaultItem(${idx})" class="btn ${item.url ? 'flex-1' : 'w-full'} py-1.5 text-[10px] font-bold" style="color:var(--bad)">Remove</button>
             </div>
@@ -1278,6 +1509,178 @@
       if (!item?.url) return;
       switchTab('grab');
       initiateDownload(item.url, item.formatId || 'best');
+    }
+
+    // ================= In-app player (APK parity) =================
+    // Browsers have no file paths, so playback uses the blob we just handed to
+    // the download manager. Blobs live for the session in a bounded registry so
+    // Vault cards can replay what you grabbed without a network round-trip.
+    const PLAYER_SPEEDS = [1, 1.25, 1.5, 2, 0.5];
+    const MEDIA_BLOB_CAP = 4;
+    let playerQueue = [];   // [{ name, url }] newest first
+    let playerIndex = -1;
+    let playerMeta = null;
+
+    function registerMediaBlob(name, url) {
+      playerQueue.unshift({ name: name, url: url });
+      while (playerQueue.length > MEDIA_BLOB_CAP) {
+        const dropped = playerQueue.pop();
+        try { URL.revokeObjectURL(dropped.url); } catch (e) {}
+      }
+    }
+    function playerQueueHas(name) {
+      return playerQueue.some(e => e.name === name);
+    }
+    function fmtClock(sec) {
+      const s = Math.max(0, Math.floor(sec || 0));
+      return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    }
+    // Vault card tap: play the session copy when we still hold it, otherwise
+    // fall back to the classic "grab it again" behaviour.
+    function openVaultItem(idx) {
+      const item = downloadsHistory[idx];
+      if (!item) return;
+      const i = playerQueue.findIndex(e => e.name === item.title);
+      if (i >= 0) {
+        playerIndex = i;
+        openPlayerWith(playerQueue[i].url, i, item.formatId !== 'audio');
+        return;
+      }
+      redownloadVaultItem(idx);
+    }
+
+    function openPlayerWith(url, id, isVideo) {
+      playerMeta = { id: id, isVideo: isVideo };
+      const item = playerQueue[playerIndex] || {};
+      document.getElementById('playerTitle').innerText = item.name || 'Media';
+      const v = document.getElementById('playerVideo');
+      setupPlayerGestures(v);
+      setupPlayerSwipe();
+      v.src = url;
+      document.getElementById('playerModal').classList.remove('hidden');
+      v.playbackRate = 1;
+      const sp = document.getElementById('btnPlayerSpeed');
+      if (sp) sp.innerText = '1×';
+      updatePlayBtn();
+      v.play().catch(() => {});
+    }
+
+    function cyclePlayerSpeed() {
+      const v = document.getElementById('playerVideo');
+      const btn = document.getElementById('btnPlayerSpeed');
+      const current = parseFloat(v.playbackRate) || 1;
+      const idx = PLAYER_SPEEDS.indexOf(current);
+      const next = PLAYER_SPEEDS[(idx + 1) % PLAYER_SPEEDS.length];
+      v.playbackRate = next;
+      if (btn) btn.innerText = next + '×';
+      showPlayerRipple(next + '×');
+    }
+
+    function showPlayerRipple(text) {
+      const box = document.getElementById('playerRipple');
+      const t = document.getElementById('playerRippleText');
+      if (!box || !t) return;
+      t.innerText = text;
+      box.style.opacity = '1';
+      clearTimeout(box._rippleTimer);
+      box._rippleTimer = setTimeout(() => { box.style.opacity = '0'; }, 450);
+    }
+
+    function setupPlayerGestures(v) {
+      if (v.dataset.gestures) return;
+      v.dataset.gestures = '1';
+      v.addEventListener('loadedmetadata', updatePlayerUi);
+      v.addEventListener('timeupdate', updatePlayerUi);
+      v.addEventListener('play', updatePlayBtn);
+      v.addEventListener('pause', updatePlayBtn);
+      let lastTap = 0, singleTimer = null;
+      v.addEventListener('click', (e) => {
+        const now = Date.now();
+        const rect = v.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        if (now - lastTap < 300) {
+          // Double tap: left half rewinds, right half jumps forward.
+          clearTimeout(singleTimer);
+          const dir = x < rect.width / 2 ? -10 : 10;
+          skipPlayer(dir);
+          showPlayerRipple((dir > 0 ? '+' : '') + dir + 's');
+          lastTap = 0;
+          return;
+        }
+        lastTap = now;
+        singleTimer = setTimeout(() => { togglePlay(); }, 280);
+      });
+    }
+
+    function setupPlayerSwipe() {
+      const modal = document.getElementById('playerModal');
+      if (!modal || modal.dataset.swipeReady) return;
+      modal.dataset.swipeReady = '1';
+      let y0 = 0, dy = 0, active = false;
+      modal.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; dy = 0; active = true; }, { passive: true });
+      modal.addEventListener('touchmove', (e) => {
+        if (!active) return;
+        dy = e.touches[0].clientY - y0;
+        if (dy > 0) modal.style.transform = 'translateY(' + dy + 'px)';
+      }, { passive: true });
+      modal.addEventListener('touchend', () => {
+        active = false;
+        modal.style.transform = '';
+        if (dy > 120) closePlayer();
+      });
+    }
+
+    function updatePlayerUi() {
+      const v = document.getElementById('playerVideo');
+      const fill = document.getElementById('playerSeek')?.firstElementChild;
+      if (fill) fill.style.width = (v.duration ? (v.currentTime / v.duration) * 100 : 0) + '%';
+      const t = document.getElementById('playerTime'), d = document.getElementById('playerDur');
+      if (t) t.innerText = fmtClock(v.currentTime);
+      if (d) d.innerText = fmtClock(v.duration);
+    }
+    function updatePlayBtn() {
+      const v = document.getElementById('playerVideo');
+      const btn = document.getElementById('playerPlayBtn');
+      if (btn) btn.innerHTML = v.paused
+        ? '<svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M7 4.5v15l13-7.5-13-7.5z"/></svg>'
+        : '<svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M7 4.5h4v15H7zM13 4.5h4v15h-4z"/></svg>';
+    }
+    function togglePlay() {
+      const v = document.getElementById('playerVideo');
+      if (v.paused) v.play().catch(() => {}); else v.pause();
+    }
+    function skipPlayer(delta) {
+      const v = document.getElementById('playerVideo');
+      v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + delta));
+      updatePlayerUi();
+    }
+    function seekPlayer(ev) {
+      const v = document.getElementById('playerVideo');
+      const track = ev.currentTarget.getBoundingClientRect();
+      const x = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - track.left);
+      if (v.duration) v.currentTime = Math.max(0, Math.min(1, x / track.width)) * v.duration;
+    }
+    function playerNext() { stepPlayer(1); }
+    function playerPrev() { stepPlayer(-1); }
+    function stepPlayer(dir) {
+      if (!playerQueue.length) return;
+      playerIndex = (playerIndex + dir + playerQueue.length) % playerQueue.length;
+      const item = playerQueue[playerIndex];
+      openPlayerWith(item.url, playerIndex, true);
+    }
+    function closePlayer() {
+      const v = document.getElementById('playerVideo');
+      try { v.pause(); } catch (e) {}
+      v.removeAttribute('src');
+      v.load();
+      playerMeta = null;
+      document.getElementById('playerModal').classList.add('hidden');
+    }
+    function openExternalPlayer() {
+      if (!playerMeta) return;
+      const item = playerQueue[playerIndex];
+      if (!item) return;
+      window.open(item.url, '_blank');
     }
 
     // ================= iOS save sheet =================
@@ -1335,6 +1738,8 @@
       const chk = document.getElementById('chkLightTheme');
       if (chk) chk.checked = (theme === 'light');
       try { localStorage.setItem('downi_web_theme', theme); localStorage.removeItem('omni_theme'); } catch(e) {}
+      // AMOLED only applies on the dark surface — resync whenever theme flips.
+      applyAmoled();
     }
     function initTheme() {
       let saved = '';
@@ -1383,6 +1788,102 @@
       }
     }
 
+    // ================= Appearance: accents + AMOLED (APK parity) =================
+    const ACCENTS = {
+      cyan:    { a: '#22D3EE', b: '#3B82F6' },
+      violet:  { a: '#8B5CF6', b: '#6366F1' },
+      emerald: { a: '#10B981', b: '#34D399' },
+      rose:    { a: '#FB7185', b: '#F43F5E' },
+    };
+    function hexToRgbTriplet(hex) {
+      const n = parseInt(String(hex).replace('#', ''), 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(', ');
+    }
+    function applyAccent() {
+      let name = 'cyan';
+      try { name = localStorage.getItem('downi_web_accent') || 'cyan'; } catch (e) {}
+      const c = ACCENTS[name] || ACCENTS.cyan;
+      const root = document.documentElement.style;
+      root.setProperty('--accent', c.a);
+      root.setProperty('--accent-2', c.b);
+      root.setProperty('--accent-rgb', hexToRgbTriplet(c.a));
+      root.setProperty('--accent-2-rgb', hexToRgbTriplet(c.b));
+    }
+    function setAccent(name) {
+      try { localStorage.setItem('downi_web_accent', name); } catch (e) {}
+      applyAccent();
+      showToast('Accent updated', 'Your DOWNI glow is now ' + name + '.', 'success');
+    }
+    function applyAmoled() {
+      let on = true;
+      try { on = localStorage.getItem('downi_web_amoled') !== '0'; } catch (e) {}
+      // AMOLED is a dark-mode surface; the light theme keeps its own palette.
+      const isLight = document.documentElement.dataset.theme === 'light';
+      document.documentElement.classList.toggle('amoled', on && !isLight);
+      const chk = document.getElementById('chkAmoled');
+      if (chk) chk.checked = on;
+    }
+    function setAmoled(on) {
+      try { localStorage.setItem('downi_web_amoled', on ? '1' : '0'); } catch (e) {}
+      applyAmoled();
+    }
+    function copyAppVersion() {
+      const text = 'DOWNI Web v' + WEB_VERSION;
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast('Copied', text, 'success')).catch(() => {});
+      }
+    }
+
+    // ================= Network diagnostics (APK parity) =================
+    async function runDiagnostics() {
+      const btn = document.getElementById('btnDiagnose');
+      const box = document.getElementById('diagnosticsResults');
+      if (!btn || !box) return;
+      btn.disabled = true; btn.innerText = '…';
+      box.classList.remove('hidden');
+      box.innerHTML = '<div class="skel h-8"></div><div class="skel h-8"></div><div class="skel h-8"></div>';
+      try {
+        const res = await fetch('/api/diagnose', { headers: { 'X-Downi-Web': '1' } });
+        const data = await res.json();
+        const results = data.results || [];
+        box.innerHTML = results.map(r => `
+          <div class="flex items-center justify-between rounded-xl px-3 py-2" style="background:rgba(255,255,255,.03)">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0" style="${r.ok ? 'background:rgba(52,211,153,.15);color:var(--ok)' : 'background:rgba(251,113,133,.15);color:var(--bad)'}">${r.ok ? '✓' : '✕'}</span>
+              <span class="text-[11px] font-bold text-zinc-200 truncate">${escapeHtml(r.check)}</span>
+            </div>
+            <span class="text-[10px] font-mono flex-shrink-0" style="color:${r.ok ? 'var(--ok)' : 'var(--bad)'}">${r.ok ? r.ms + 'ms' : 'failed'}</span>
+          </div>
+        `).join('') || '<p class="text-[11px]" style="color:var(--muted)">No results.</p>';
+        const fails = results.filter(r => !r.ok);
+        if (!fails.length) showToast('All clear ✓', 'Every engine check passed.', 'success');
+        else showToast(fails.length + ' failing', 'Those platforms are blocked for this server right now.', 'error');
+      } catch (err) {
+        box.innerHTML = `<p class="text-[11px]" style="color:var(--bad)">${escapeHtml(err?.message || 'Diagnostics failed')}</p>`;
+      } finally {
+        btn.disabled = false; btn.innerText = 'Run';
+      }
+    }
+
+    // ================= Vault controls (APK parity) =================
+    let vaultLayout = 'grid';
+    let vaultSearchQuery = '';
+    let vaultSortMode = 'new';
+    function toggleVaultLayout() {
+      vaultLayout = vaultLayout === 'grid' ? 'list' : 'grid';
+      const btn = document.getElementById('btnVaultLayout');
+      if (btn) btn.innerText = vaultLayout === 'grid' ? 'List' : 'Grid';
+      renderVaultGrid();
+    }
+    function onVaultSearch(value) {
+      vaultSearchQuery = (value || '').trim();
+      renderVaultGrid();
+    }
+    function onVaultSort(value) {
+      vaultSortMode = value || 'new';
+      renderVaultGrid();
+    }
+
     // ================= Utils & Storage =================
     function extractUrl(text) {
       if (!text) return "";
@@ -1417,6 +1918,32 @@
       try { downloadsHistory = JSON.parse(localStorage.getItem('downi_web_history') || '[]'); } catch (e) { downloadsHistory = []; }
       completedCount = downloadsHistory.length;
       grabbedBytes = parseInt(localStorage.getItem('downi_web_bytes') || '0', 10) || 0;
+      updateLastGrabChip();
+    }
+
+    // ---- Last-grab chip (APK parity): one tap re-grabs your most recent link ----
+    function updateLastGrabChip() {
+      const chip = document.getElementById('lastGrabChip');
+      const txt = document.getElementById('lastGrabText');
+      if (!chip || !txt) return;
+      const last = downloadsHistory[0];
+      if (last && last.url) {
+        txt.innerText = last.title || last.url;
+        chip.classList.remove('hidden');
+      } else {
+        chip.classList.add('hidden');
+      }
+    }
+
+    function handleLastGrabClick() {
+      const last = downloadsHistory[0];
+      if (last && last.url) {
+        document.getElementById('inputManualUrl').value = last.url;
+        handleUrlInputChanged();
+        handleInspectAndOpenModal(last.url);
+      } else {
+        switchTab('queue');
+      }
     }
 
     // ================= v2.0: share-target, drag & drop, install prompt =================
@@ -1488,6 +2015,8 @@
       const aboutV = document.getElementById('aboutVersion');
       if (aboutV) aboutV.innerText = 'v' + WEB_VERSION;
       initTheme();
+      applyAccent();
+      applyAmoled();
       loadHistory();
       renderQueueTab();
       refreshVault();

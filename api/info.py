@@ -240,6 +240,7 @@ def _tiktok_info(url: str) -> dict:
             {"id": "best", "label": "HD Video (No Watermark)", "badge": "HD", "ext": "mp4"},
             {"id": "audio", "label": "Audio Track (MP3)", "badge": "MP3", "ext": "mp3"},
         ],
+        "note": "HD and watermark-free, straight from the mirror — no re-encode.",
     }
 
 
@@ -360,6 +361,16 @@ def _friendly_error(raw: str, platform: str) -> str:
     return msg or "This link could not be grabbed right now."
 
 
+def _quality_note(platform: str, formats: list) -> str:
+    """One honest sentence about this link's lanes (the UI shows it under Quality)."""
+    lanes = {f.get("id") for f in formats}
+    if platform == "facebook" and not (lanes & {"1080", "720", "480"}):
+        return "Facebook serves a single progressive file — this is the best quality available for this post."
+    if platform == "pinterest" and not (lanes & {"1080", "720", "480"}):
+        return "Pinterest serves a single stream for this pin — this is the best quality available."
+    return ""
+
+
 def _build_formats(info: dict) -> list:
     raw_formats = info.get("formats") or []
 
@@ -375,12 +386,12 @@ def _build_formats(info: dict) -> list:
         reverse=True,
     )
 
-    candidates = [("best", "Best Quality", "BEST", "mp4")]
-    for h, label, badge in [(1080, "1080p Full HD", "1080p"), (720, "720p HD", "720p"), (480, "480p", "480p")]:
+    candidates = [("best", "Best Available Quality (HD)", "HD", "mp4")]
+    for h, label, badge in [(1080, "Up to 1080p Full HD", "1080p"), (720, "720p HD Quality", "720p"), (480, "480p Standard Quality", "480p")]:
         if any(hh >= h for hh in heights):
             candidates.append((str(h), label, badge, "mp4"))
 
-    candidates.append(("audio", "Audio Only (MP3)", "MP3", "m4a"))
+    candidates.append(("audio", "Audio Track (MP3 / M4A)", "MP3", "m4a"))
 
     seen = set()
     result = []
@@ -483,6 +494,7 @@ class Handler(BaseHTTPRequestHandler):
                 "uploader": info.get("uploader") or info.get("channel") or "",
                 "platform": platform,
                 "formats": formats,
+                "note": _quality_note(platform, formats),
             })
 
         except Exception as exc:

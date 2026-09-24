@@ -34,12 +34,14 @@ _YDL_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
+# Same lane cascade the Android engine uses (downloader.py): prefer a muxed
+# MP4, then any muxed stream, then whatever the platform serves as best.
 _FORMAT_SELECTORS = {
-    "best":  "b/best",
-    "1080":  "b[height<=1080]/b/best",
-    "720":   "b[height<=720]/b/best",
-    "480":   "b[height<=480]/b/best",
-    "audio": "ba/b",
+    "best":  "best[ext=mp4][vcodec!=none]/best[vcodec!=none]/best",
+    "1080":  "best[height<=1080][ext=mp4][vcodec!=none]/best[height<=1080][vcodec!=none]/best",
+    "720":   "best[height<=720][ext=mp4][vcodec!=none]/best[height<=720][vcodec!=none]/best",
+    "480":   "best[height<=480][ext=mp4][vcodec!=none]/best[height<=480][vcodec!=none]/best",
+    "audio": "bestaudio[ext=m4a]/bestaudio/best",
 }
 
 _MIME = {
