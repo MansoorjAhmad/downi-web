@@ -19,6 +19,16 @@ Vanilla JS + Tailwind (fully local — no CDN), an installable PWA with an offli
 - **Offline-ready PWA**: installable, light/dark theme (system default), local icons/fonts/runtime cached by a service worker.
 - **Honest limits**: max proxied file 300 MB; Vercel function limits apply (300 s max duration).
 
+## 🔗 APK parity
+
+The web app is a true sibling of the Android app, not a lookalike:
+
+- **Same design system** — identical tokens, local Tailwind build, fonts and icon language, the same `Grab / Queue / Vault / Settings` navigation, and the same components: full-screen in-app player (double-tap seek, speed, swipe-down), network diagnostics panel, accent picker (cyan / violet / emerald / rose), AMOLED black, vault layout + search + sort, toast actions with **Undo**, last-grab chip, clipboard thumbnail preview, and honest quality notes.
+- **Same engine** — yt-dlp 2026.8.19 driven by the Android app's lane cascade (see `downloader.py` in the mobile repo), with one server-side twist: lanes prefer progressive HTTP files and refuse HLS manifests, because the phone downloads HLS natively while this proxy streams a single URL.
+- **Same honest errors** — one plain sentence per failure (private / login-walled / removed / no video), never raw extractor logs.
+- **`/api/diagnose`** mirrors the app's `diagnose()`: reachability, engine download path, Instagram/Facebook extraction, TikTok mirror, X mirror, and an honest *optional* TLS-impersonation probe.
+- **Web-only by necessity** — standard browser downloads (straight to the default folder, no picker), the iOS save sheet, PWA install + share target, and no APK self-updater (a browser can't install APKs).
+
 ## 🛡️ Security & abuse limits
 
 - Platform allow-list + HTTPS-only direct links + private-network (SSRF) block on both endpoints — this protects the server from abuse targets, it never limits your users.
