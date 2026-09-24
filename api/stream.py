@@ -35,13 +35,16 @@ _YDL_HEADERS = {
 }
 
 # Same lane cascade the Android engine uses (downloader.py): prefer a muxed
-# MP4, then any muxed stream, then whatever the platform serves as best.
+# MP4, then any muxed stream, then whatever the platform serves as best —
+# with one server-side twist: [protocol^=http] keeps progressive files first.
+# The Android app downloads HLS with yt-dlp's native downloader; this proxy
+# streams a single URL, so a manifest must never win a lane.
 _FORMAT_SELECTORS = {
-    "best":  "best[ext=mp4][vcodec!=none]/best[vcodec!=none]/best",
-    "1080":  "best[height<=1080][ext=mp4][vcodec!=none]/best[height<=1080][vcodec!=none]/best",
-    "720":   "best[height<=720][ext=mp4][vcodec!=none]/best[height<=720][vcodec!=none]/best",
-    "480":   "best[height<=480][ext=mp4][vcodec!=none]/best[height<=480][vcodec!=none]/best",
-    "audio": "bestaudio[ext=m4a]/bestaudio/best",
+    "best":  "best[protocol^=http][ext=mp4][vcodec!=none]/best[protocol^=http][vcodec!=none]/best[ext=mp4][vcodec!=none]/best[vcodec!=none]/best[protocol^=http]/best",
+    "1080":  "best[height<=1080][protocol^=http][ext=mp4][vcodec!=none]/best[height<=1080][protocol^=http][vcodec!=none]/best[height<=1080][ext=mp4][vcodec!=none]/best[height<=1080][vcodec!=none]/best",
+    "720":   "best[height<=720][protocol^=http][ext=mp4][vcodec!=none]/best[height<=720][protocol^=http][vcodec!=none]/best[height<=720][ext=mp4][vcodec!=none]/best[height<=720][vcodec!=none]/best",
+    "480":   "best[height<=480][protocol^=http][ext=mp4][vcodec!=none]/best[height<=480][protocol^=http][vcodec!=none]/best[height<=480][ext=mp4][vcodec!=none]/best[height<=480][vcodec!=none]/best",
+    "audio": "bestaudio[protocol^=http][ext=m4a]/bestaudio[protocol^=http]/bestaudio[ext=m4a]/bestaudio/best[protocol^=http]/best",
 }
 
 _MIME = {
@@ -317,10 +320,23 @@ def _friendly_error(raw: str, platform: str) -> str:
     return msg or "This link could not be grabbed right now."
 
 
+def _is_progressive(entry: dict) -> bool:
+    """True when a format is a single fetchable file (never an HLS manifest).
+
+    The proxy streams one URL; an .m3u8 would ship a playlist to the user as
+    if it were a video (seen live on Pinterest), so manifests are excluded.
+    """
+    proto = str(entry.get("protocol") or "").lower()
+    url = str(entry.get("url") or "").lower()
+    if "m3u8" in proto or "dash" in proto or "ism" in proto:
+        return False
+    return not url.split("?")[0].endswith((".m3u8", ".mpd", ".ism"))
+
+
 def _pick_muxed(info: dict):
-    """Return (url, ext, http_headers) for the best muxed stream."""
+    """Return (url, ext, http_headers) for the best playable stream."""
     url = info.get("url")
-    if url and (
+    if url and _is_progressive(info) and (
         (info.get("vcodec") not in (None, "none") and info.get("acodec") not in (None, "none"))
         or not info.get("formats")
     ):
@@ -331,6 +347,7 @@ def _pick_muxed(info: dict):
         if f.get("url")
         and f.get("vcodec") not in (None, "none")
         and f.get("acodec") not in (None, "none")
+        and _is_progressive(f)
     ]
     if muxed:
         best = max(muxed, key=lambda f: (f.get("height") or 0, f.get("tbr") or 0))
@@ -341,7 +358,7 @@ def _pick_muxed(info: dict):
     # file beats a hard failure — no ffmpeg is available server-side to merge.
     video_only = [
         f for f in (info.get("formats") or [])
-        if f.get("url") and f.get("vcodec") not in (None, "none")
+        if f.get("url") and f.get("vcodec") not in (None, "none") and _is_progressive(f)
     ]
     if video_only:
         best = max(video_only, key=lambda f: (f.get("height") or 0, f.get("tbr") or 0))
@@ -350,7 +367,7 @@ def _pick_muxed(info: dict):
     # Tier 3: some extractors leave codec metadata empty or "unknown"
     # (Facebook's single progressive "sd" file, for example). A playable URL
     # beats a hard failure — prefer video-looking containers, then bitrate.
-    fallback = [f for f in (info.get("formats") or []) if f.get("url")]
+    fallback = [f for f in (info.get("formats") or []) if f.get("url") and _is_progressive(f)]
     if fallback:
         best = max(
             fallback,
@@ -512,6 +529,13 @@ class Handler(BaseHTTPRequestHandler):
                     cdn_url, ext, title, cdn_headers = _resolve(url, fmt_id)  # yt-dlp fallback
             else:
                 cdn_url, ext, title, cdn_headers = _resolve(url, fmt_id)
+
+            # Defense in depth: never proxy a manifest as if it were media.
+            if str(cdn_url).lower().split("?")[0].endswith((".m3u8", ".mpd", ".ism")):
+                raise RuntimeError(
+                    "This link only offers a streaming manifest the web proxy can't grab — "
+                    "the DOWNI Android app handles it on-device."
+                )
 
             filename = f"{_sanitize_filename(title)}.{ext}"
             content_type = _MIME.get(ext, "application/octet-stream")
