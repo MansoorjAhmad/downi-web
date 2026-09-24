@@ -337,13 +337,15 @@ def _resolve(url: str, fmt_id: str):
     selector = _FORMAT_SELECTORS.get(fmt_id.lower(), _FORMAT_SELECTORS["best"])
     is_audio = fmt_id.lower() in ("audio", "mp3", "m4a")
 
-    attempts = [
-        (selector, None),
-        ("b/best", None),
-    ]
+    imp = _impersonate_opts()
+    attempts = []
+    if imp:
+        attempts.append((selector, dict(imp)))
+    attempts.append((selector, None))
+    attempts.append(("b/best", None))
 
     last_err = None
-    for sel, extractor_args in attempts:
+    for sel, extra_opts in attempts:
         opts = {
             "quiet": True,
             "no_warnings": True,
@@ -353,9 +355,8 @@ def _resolve(url: str, fmt_id: str):
             "format": sel,
             "http_headers": dict(_YDL_HEADERS),
         }
-        opts.update(_impersonate_opts())
-        if extractor_args:
-            opts["extractor_args"] = extractor_args
+        if extra_opts:
+            opts.update(extra_opts)
 
         try:
             with YoutubeDL(opts) as ydl:

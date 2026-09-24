@@ -137,7 +137,7 @@ def _impersonate_opts() -> dict:
 
 
 def _get_info(url: str) -> dict:
-    opts = {
+    base = {
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
@@ -146,8 +146,17 @@ def _get_info(url: str) -> dict:
         "skip_download": True,
         "http_headers": dict(_HEADERS),
     }
-    opts.update(_impersonate_opts())
-    with YoutubeDL(opts) as ydl:
+    imp = _impersonate_opts()
+    if imp:
+        # Impersonated client first — some platforms only answer to a real
+        # browser fingerprint. If the impersonation stack itself hiccups,
+        # fall back to the standard client so working platforms stay working.
+        try:
+            with YoutubeDL({**base, **imp}) as ydl:
+                return ydl.extract_info(url, download=False)
+        except Exception:
+            pass
+    with YoutubeDL(base) as ydl:
         return ydl.extract_info(url, download=False)
 
 
