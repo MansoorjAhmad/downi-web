@@ -412,7 +412,7 @@
           </div>
           <div class="min-w-0 flex-1">
             <p class="text-[12px] font-extrabold text-white">Share to DOWNI</p>
-            <p class="text-[10px] mt-0.5" style="color:var(--muted)">Install DOWNI, then in any app: Share → DOWNI — the link opens here ready to grab</p>
+            <p class="text-[10px] mt-0.5" style="color:var(--muted)">Installed on <b>Android</b>? Share any link → DOWNI and it grabs instantly. On iPhone, copy the link and open DOWNI.</p>
           </div>
         </div>
 
@@ -571,7 +571,7 @@
           </div>
           <div class="py-3 border-t border-white/5">
             <p class="text-[12px] font-bold text-zinc-200">Share to DOWNI</p>
-            <p class="text-[10px] mt-0.5" style="color:var(--muted)">Install the app, then Share → DOWNI from any app — one tap lands the link here</p>
+            <p class="text-[10px] mt-0.5" style="color:var(--muted)">Android (installed app): Share → DOWNI grabs instantly. iPhone: Safari can't register share targets — copy the link instead.</p>
             <div class="flex gap-2 mt-2.5">
               <div class="chip on flex-1 py-2 text-[10px] font-bold text-center">⚡ Web Share Target</div>
             </div>
@@ -1999,9 +1999,13 @@
           document.getElementById('inputManualUrl').value = clean;
           handleUrlInputChanged();
           currentInspectedUrl = clean;
-          handleInspectAndOpenModal(clean);
-          showToast('Shared link', 'Picked up from your share — pick a quality.', 'success');
           window.history.replaceState({}, '', '/');
+          // APK DowniDrop parity: a shared link grabs instantly at best quality.
+          // The toast keeps a one-tap escape hatch into the quality picker.
+          initiateDownload(clean, 'best');
+          showToast('Shared link', 'Grabbing best quality now.', 'success', 'Quality', () => {
+            handleInspectAndOpenModal(clean);
+          });
         }
       } catch (e) {}
     }
