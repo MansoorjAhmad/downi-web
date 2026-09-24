@@ -963,29 +963,9 @@
       updateQueueBadge();
       showToast('Grab started', 'DOWNI is processing video stream.', 'success');
 
-      // Chromium desktop/Android: open the save picker FIRST (inside the tap's
-      // user-activation window) so the response can stream straight to disk
-      // instead of buffering the whole video in RAM.
-      let diskHandle = null;
-      if (!isIOS && 'showSaveFilePicker' in window) {
-        try {
-          const titleGuess = (document.getElementById('inspectorTitle')?.innerText || '').trim();
-          const base = (titleGuess && titleGuess !== 'Scanning qualities…' && titleGuess !== 'Video title')
-            ? titleGuess.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, ' ').slice(0, 60).trim()
-            : 'downi-video';
-          diskHandle = await window.showSaveFilePicker({
-            suggestedName: (base || 'downi-video') + (formatId === 'audio' ? '.mp3' : '.mp4')
-          });
-        } catch (e) {
-          if (e && e.name === 'AbortError') {
-            activeJobs.delete(jobId);
-            renderJobCards();
-            updateQueueBadge();
-            return;
-          }
-          diskHandle = null; // activation expired / unsupported → blob fallback below
-        }
-      }
+      // Standard browser download behavior: no save dialog, no folder picking —
+      // the finished file lands in the browser's default download folder,
+      // exactly like any regular web download.
 
       try {
         const payload = { url, formatId, ios: isIOS };
@@ -998,7 +978,6 @@
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          if (diskHandle) { try { await diskHandle.remove(); } catch (e) {} }
           throw new Error(errData.error || `Server responded with ${res.status}`);
         }
 
@@ -1024,7 +1003,6 @@
         let filename = 'download.mp4';
         const match = disp.match(/filename="?([^"]+)"?/);
         if (match && match[1]) filename = match[1];
-        if (diskHandle) filename = diskHandle.name;
 
         const trackProgress = () => {
           const now = Date.now();
@@ -1042,46 +1020,28 @@
 
         job.status = 'Downloading…';
 
-        if (diskHandle) {
-          // Stream straight to disk — no in-memory buffering, big files are safe.
-          const writable = await diskHandle.createWritable();
-          const reader = res.body.getReader();
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              await writable.write(value);
-              loaded += value.length;
-              trackProgress();
-            }
-            await writable.close();
-          } catch (streamErr) {
-            try { await writable.abort(); } catch (e) {}
-            try { await diskHandle.remove(); } catch (e) {}
-            throw streamErr;
-          }
-        } else {
-          // Fallback: buffer in memory, then save (Safari/Firefox).
-          const reader = res.body.getReader();
-          const chunks = [];
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            loaded += value.length;
-            trackProgress();
-          }
-
-          const blob = new Blob(chunks);
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        // Read the response, then hand it to the browser as a normal download
+        // (object URL + download attribute): it saves straight to the default
+        // download folder with no save dialog.
+        const reader = res.body.getReader();
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          loaded += value.length;
+          trackProgress();
         }
+
+        const blob = new Blob(chunks);
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 
         job.percent = 100;
         job.done = true;

@@ -15,7 +15,7 @@ Vanilla JS + Tailwind (fully local — no CDN), an installable PWA with an offli
 - **Honest about the rest**: YouTube, Instagram, Facebook and X block datacenter-IP extraction. The web app says so in one plain sentence — never raw extractor logs — and points you to the free **DOWNI Android app**, which grabs them fully on-device. (Client spoofing is permanently banned: see `READ_THIS_BEFORE_UPGRADE.md` in the Android repo.)
 - **Facebook link-shapes**: modern share links (`fb.watch`, `/share/v/…`, `m.facebook.com`, `/watch/<page>/<id>/`) are normalized to the canonical form before extraction.
 - **Quality picker**: up to 1080p where a platform serves a muxed stream, plus 720p / 480p / audio-only.
-- **Big-file safe**: streams straight to disk via the File System Access API on Chromium (no RAM buffering); blob fallback on Safari/Firefox; a dedicated save sheet on iOS.
+- **Standard downloads**: files go straight to the browser's default download folder — no save dialog, no folder picking, every browser. A dedicated save sheet handles iOS.
 - **Offline-ready PWA**: installable, light/dark theme (system default), local icons/fonts/runtime cached by a service worker.
 - **Honest limits**: max proxied file 300 MB; Vercel function limits apply (300 s max duration).
 
